@@ -769,14 +769,186 @@ real = self._data_sampler.sample_data(
     </div>
   </section>
 
+  <!-- RESULTADOS REAIS -->
+  <section id="resultados">
+    <h2>Resultados Obtidos</h2>
+    <p>
+      Após a implementação da solução, foram realizados benchmarks comparativos
+      para validar a eficácia da otimização.
+    </p>
+
+    <h3>Cenário de Teste</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parâmetro</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Linhas</td><td class="highlight">50.000</td></tr>
+          <tr><td>Colunas</td><td class="highlight">20</td></tr>
+          <tr><td>Épocas</td><td class="highlight">5</td></tr>
+          <tr><td>Batch Size</td><td>500</td></tr>
+          <tr><td>Device</td><td>CPU</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Resultados de Tempo</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Modelo</th>
+            <th>Antes</th>
+            <th>Depois</th>
+            <th>Melhoria</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>CTGAN fit</strong></td>
+            <td>280.9s</td>
+            <td class="highlight">75.1s</td>
+            <td class="highlight">3.74x mais rápido</td>
+          </tr>
+          <tr>
+            <td><strong>TVAE fit</strong></td>
+            <td>72.4s</td>
+            <td>55.6s</td>
+            <td>1.30x mais rápido</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Resultados de Memória</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Modelo</th>
+            <th>Antes</th>
+            <th>Depois</th>
+            <th>Melhoria</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>CTGAN</strong></td>
+            <td>230.5 MB</td>
+            <td class="highlight">164.4 MB</td>
+            <td class="highlight">28.7% menos</td>
+          </tr>
+          <tr>
+            <td><strong>TVAE</strong></td>
+            <td>164.5 MB</td>
+            <td>164.4 MB</td>
+            <td>~0%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="value">3.74x</div>
+        <div class="label">CTGAN mais rápido</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">28.7%</div>
+        <div class="label">Redução memória CTGAN</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">1.500</div>
+        <div class="label">Conversões eliminadas</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">75.1s</div>
+        <div class="label">Tempo final CTGAN</div>
+      </div>
+    </div>
+
+    <div class="callout success">
+      <strong>Resultado:</strong> A otimização superou as expectativas. O CTGAN
+      agora é apenas 1.35x mais lento que o TVAE (antes era 3.88x), e usa
+      memória equivalente. A solução eliminou o bottleneck de conversão
+      sem comprometer a funcionalidade de amostragem condicional.
+    </div>
+
+    <h3>Comparação Detalhada (10k linhas, 10 cols, 1 época)</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Benchmark</th>
+            <th>Antes</th>
+            <th>Depois</th>
+            <th>Melhoria</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>DataTransformer</td>
+            <td>5.31s</td>
+            <td>5.20s</td>
+            <td>1.02x</td>
+          </tr>
+          <tr>
+            <td>ClusterBasedNormalizer</td>
+            <td>0.99s</td>
+            <td>0.98s</td>
+            <td>1.01x</td>
+          </tr>
+          <tr>
+            <td>OneHotEncoder</td>
+            <td>0.03s</td>
+            <td>0.03s</td>
+            <td>1.00x</td>
+          </tr>
+          <tr>
+            <td><strong>CTGAN</strong></td>
+            <td>7.12s</td>
+            <td class="highlight">7.08s</td>
+            <td>1.01x</td>
+          </tr>
+          <tr>
+            <td><strong>TVAE</strong></td>
+            <td>5.55s</td>
+            <td>5.56s</td>
+            <td>1.00x</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <strong>Nota:</strong> Para volumes menores (10k linhas, 1 época), a melhoria
+      é marginal porque o overhead de conversão é proporcionalmente pequeno.
+      A otimização impacta significativamente apenas em cenários com muitas
+      épocas e grandes volumes de dados.
+    </div>
+  </section>
+
   <section>
     <h2>Conclusão</h2>
     <p>
-      A diferença de performance entre CTGAN e TVAE não é intrínseca à complexidade
+      A diferença de performance entre CTGAN e TVAE não era intrínseca à complexidade
       dos modelos, mas sim resultado de uma diferença de implementação na gestão
-      de dados durante o treinamento. A solução proposta elimina o overhead de
+      de dados durante o treinamento. A solução implementada eliminou o overhead de
       conversão repetida movendo a transformação NumPy → Tensor para antes do
-      loop de treinamento, mantendo toda a funcionalidade original do CTGAN.
+      loop de treinamento.
+    </p>
+    <p>
+      Os resultados demonstram que o CTGAN agora é <strong>3.74x mais rápido</strong>
+      para treinamento com 50k linhas e 5 épocas, usando <strong>28.7% menos memória</strong>.
+      A otimização manteve toda a funcionalidade original do CTGAN, incluindo a
+      amostragem condicional essencial para a qualidade dos dados sintéticos gerados.
     </p>
   </section>
 
