@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTGAN — Análise de Performance: CTGAN vs TVAE</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#fff; --fg:#1a1a2e; --muted:#64748b; --accent:#2563eb; --accent-bg:#eff6ff;
+      --border:#e2e8f0; --code-bg:#f8fafc; --paper-bg:#fefce8; --paper-bdr:#fbbf24;
+      --tag-bg:#f1f5f9; --radius:8px; --max-w:820px;
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono','Fira Code','Consolas',monospace;
+      --success:#16a34a; --success-bg:#f0fdf4; --warning:#d97706; --warning-bg:#fffbeb;
+      --danger:#dc2626; --danger-bg:#fef2f2;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--font-sans); background:var(--bg); color:var(--fg); line-height:1.75; font-size:16px; }
+    .wrapper { max-width:var(--max-w); margin:0 auto; padding:3rem 1.5rem 6rem; }
+    header { margin-bottom:3rem; padding-top:.5rem; }
+    header h1 { font-size:2.5rem; font-weight:800; letter-spacing:-.03em; margin-bottom:.5rem; }
+    header .subtitle { color:var(--muted); font-size:1.05rem; margin-bottom:1.5rem; }
+    .tag { display:inline-block; padding:.2em .7em; font-size:.8rem; font-weight:600; border-radius:999px; background:var(--tag-bg); color:var(--muted); }
+    .tag.accent { background:var(--accent-bg); color:var(--accent); }
+    .tag.warning { background:var(--warning-bg); color:var(--warning); }
+    .tag.danger { background:var(--danger-bg); color:var(--danger); }
+    nav.toc { position:fixed; top:3rem; right:max(1rem,calc((100vw - var(--max-w))/2 - 240px)); width:220px; font-size:.82rem; display:none; }
+    @media(min-width:1200px){ nav.toc{display:block;} }
+    nav.toc a { display:block; padding:.25em 0; color:var(--muted); text-decoration:none; border-left:2px solid transparent; padding-left:.75rem; transition:all .15s; }
+    nav.toc a:hover, nav.toc a.active { color:var(--accent); border-left-color:var(--accent); }
+    section { margin-bottom:3.5rem; }
+    h2 { font-size:1.6rem; font-weight:700; margin-bottom:1rem; padding-bottom:.4rem; border-bottom:2px solid var(--border); letter-spacing:-.02em; }
+    h3 { font-size:1.15rem; font-weight:600; margin:1.8rem 0 .6rem; color:var(--fg); }
+    p { margin-bottom:1rem; }
+    .paper-excerpt { background:var(--paper-bg); border-left:4px solid var(--paper-bdr); padding:1rem 1.25rem; border-radius:0 var(--radius) var(--radius) 0; margin:1.25rem 0; font-size:.95rem; line-height:1.65; }
+    .paper-excerpt cite { display:block; margin-top:.5rem; font-size:.8rem; color:var(--muted); font-style:normal; }
+    .paper-excerpt .label { display:inline-block; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92400e; margin-bottom:.4rem; }
+    .code-block { position:relative; margin:1.25rem 0; }
+    .code-block header { display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; border:1px solid var(--border); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; padding:.4rem 1rem; font-size:.78rem; font-weight:600; color:var(--muted); margin:0; }
+    .code-block header .file { font-family:var(--font-mono); font-weight:700; }
+    pre { background:var(--code-bg); border:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); padding:1rem 1.25rem; overflow-x:auto; font-size:.82rem; line-height:1.6; font-family:var(--font-mono); tab-size:4; }
+    code { background:var(--tag-bg); padding:.15em .4em; border-radius:4px; font-size:.88em; font-family:var(--font-mono); }
+    .table-wrap { overflow-x:auto; margin:1.25rem 0; border-radius:var(--radius); border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:.88rem; }
+    th,td { padding:.6rem 1rem; text-align:left; border-bottom:1px solid var(--border); }
+    th { background:var(--tag-bg); font-weight:700; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--accent-bg); }
+    td.highlight { font-weight:700; color:var(--accent); }
+    details { margin:1rem 0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    summary { padding:.75rem 1rem; background:var(--tag-bg); cursor:pointer; font-weight:600; font-size:.9rem; list-style:none; display:flex; align-items:center; gap:.5rem; user-select:none; }
+    summary::before { content:'▸'; transition:transform .15s; }
+    details[open] summary::before { transform:rotate(90deg); }
+    summary::-webkit-details-marker { display:none; }
+    details .detail-body { padding:1rem; }
+    .callout { padding:1rem 1.25rem; border-radius:var(--radius); margin:1.25rem 0; font-size:.92rem; line-height:1.6; }
+    .callout.info { background:var(--accent-bg); border-left:4px solid var(--accent); }
+    .callout.warning { background:var(--warning-bg); border-left:4px solid var(--warning); }
+    .callout.danger { background:var(--danger-bg); border-left:4px solid var(--danger); }
+    .callout.success { background:var(--success-bg); border-left:4px solid var(--success); }
+    .callout strong { font-weight:700; }
+    .metric-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin:1.5rem 0; }
+    .metric-card { border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; text-align:center; }
+    .metric-card .value { font-size:2rem; font-weight:800; color:var(--accent); line-height:1; }
+    .metric-card .label { font-size:.78rem; color:var(--muted); margin-top:.4rem; text-transform:uppercase; letter-spacing:.04em; }
+    .nav-arrows { display:flex; justify-content:space-between; margin-top:3rem; padding-top:1.5rem; border-top:2px solid var(--border); }
+    .nav-arrows a { color:var(--accent); text-decoration:none; font-weight:600; font-size:.9rem; }
+    .nav-arrows a:hover { text-decoration:underline; }
+    footer { margin-top:4rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--muted); font-size:.82rem; text-align:center; }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+    .comparison-box { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1.5rem 0; }
+    .comparison-box > div { border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .comparison-box h4 { font-size:.9rem; font-weight:700; margin-bottom:.5rem; }
+    .comparison-box .time { font-size:1.5rem; font-weight:800; }
+    .comparison-box .time.slow { color:var(--danger); }
+    .comparison-box .time.fast { color:var(--success); }
+    @media(max-width:768px) {
+      .comparison-box { grid-template-columns:1fr; }
+      header h1 { font-size:1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="toc" id="toc">
+  <a href="#problema">O Problema</a>
+  <a href="#arquitetura">Arquitetura</a>
+  <a href="#ctgan-loop">Loop CTGAN</a>
+  <a href="#tvae-loop">Loop TVAE</a>
+  <a href="#analise">Análise</a>
+  <a href="#benchmark">Benchmark</a>
+  <a href="#solucao">Solução</a>
+  <a href="#implementacao">Implementação</a>
+</nav>
+
+<div class="wrapper">
+
+  <header id="top">
+    <h1>CTGAN vs TVAE</h1>
+    <p class="subtitle">Análise de Performance: Por que o CTGAN é mais lento que o TVAE?</p>
+    <p style="color:var(--muted); font-size:.92rem;">
+      Análise técnica do impacto da arquitetura de treinamento no tempo de execução
+    </p>
+    <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem;">
+      <span class="tag accent">Performance</span>
+      <span class="tag warning"> bottleneck</span>
+      <span class="tag">CTGAN</span>
+      <span class="tag">TVAE</span>
+      <span class="tag">PyTorch</span>
+      <a href="ctgan-documentation.html" class="tag accent" style="text-decoration:none;">← Documentação Principal</a>
+    </div>
+  </header>
+
+  <!-- PROBLEMA -->
+  <section id="problema">
+    <h2>O Problema Identificado</h2>
+    <p>
+      Em benchmarks comparativos entre o <strong>CTGAN</strong> e o <strong>TVAE</strong>,
+      observa-se que o CTGAN consistentemente apresenta tempo de treinamento significativamente
+      maior que o TVAE, mesmo quando processando os mesmos dados com a mesma quantidade de épocas.
+    </p>
+
+    <div class="comparison-box">
+      <div>
+        <h4>CTGAN (50k linhas, 5 épocas)</h4>
+        <div class="time slow">229 segundos</div>
+        <p style="font-size:.85rem; color:var(--muted); margin-top:.5rem;">
+          ~45 segundos por época
+        </p>
+      </div>
+      <div>
+        <h4>TVAE (50k linhas, 5 épocas)</h4>
+        <div class="time fast">85 segundos</div>
+        <p style="font-size:.85rem; color:var(--muted); margin-top:.5rem;">
+          ~17 segundos por época
+        </p>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <strong>差距:</strong> O CTGAN é <strong>2.7x mais lento</strong> que o TVAE para o mesmo volume de dados.
+      Isso não se deve à complexidade do modelo em si, mas sim a uma diferença arquitetural
+      na forma como cada modelo processa os dados durante o treinamento.
+    </div>
+  </section>
+
+  <!-- ARQUITETURA -->
+  <section id="arquitetura">
+    <h2>Diferença Arquitetural</h2>
+    <p>
+      A raiz do problema está em como cada modelo gerencia a conversão de dados entre
+      o formato NumPy (saída do <code>DataTransformer</code>) e tensores PyTorch
+      (necessários para o treinamento da rede neural).
+    </p>
+
+    <h3>Fluxo de Dados Comparativo</h3>
+    <p>Ambos os modelos seguem o mesmo pipeline inicial:</p>
+
+    <div class="code-block">
+      <header><span class="file">ctgan/synthesizers/ctgan.py / tvae.py</span><span>mesmo fluxo inicial</span></header>
+      <pre><code># 1. Ajustar o transformador nos dados brutos
+self._transformer = DataTransformer()
+self._transformer.fit(train_data, discrete_columns)
+
+# 2. Transformar dados brutos → matriz NumPy
+train_data = self._transformer.transform(train_data)
+
+# train_data agora é um ndarray NumPy de forma (n_rows, n_features_encoded)</code></pre>
+    </div>
+
+    <p>
+      Após esta etapa, ambos os modelos recebem um array NumPy <code>train_data</code>.
+      <strong>A divergência ocorre a partir daqui.</strong>
+    </p>
+  </section>
+
+  <!-- CTGAN LOOP -->
+  <section id="ctgan-loop">
+    <h2>Loop de Treinamento do CTGAN</h2>
+    <p>
+      O CTGAN implementa um loop de treinamento com <strong>três níveis de aninhamento</strong>,
+      e realiza a conversão NumPy → Tensor <strong>para cada batch</strong>:
+    </p>
+
+    <div class="code-block">
+      <header><span class="file">ctgan/synthesizers/ctgan.py — método fit()</span><span>linhas 405-453</span></header>
+      <pre><code>steps_per_epoch = max(len(train_data) // self._batch_size, 1)
+
+for i in epoch_iterator:                          # ← épocas
+    for id_ in range(steps_per_epoch):            # ← batches por época
+        for n in range(self._discriminator_steps): # ← passos do discriminador (default: 2)
+
+            # Amostrar dados do array NumPy
+            real = self._data_sampler.sample_data(
+                train_data, self._batch_size, col, opt
+            )
+
+            # ❌ CONVERSÃO NumPy → Tensor AQUI, a cada batch
+            real = torch.from_numpy(real.astype('float32')).to(self._device)
+
+            # ... forward pass, backward pass, etc.</code></pre>
+    </div>
+
+    <h3>Contagem de Conversões</h3>
+    <p>
+      Para um dataset de <strong>50.000 linhas</strong>, batch size de <strong>500</strong>,
+      <strong>2 passos do discriminador</strong> e <strong>5 épocas</strong>:
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parâmetro</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Batches por época</td><td class="highlight">50.000 / 500 = 100</td></tr>
+          <tr><td>Passos do discriminador</td><td class="highlight">2</td></tr>
+          <tr><td>Conversões por época</td><td class="highlight">100 × 2 = 200</td></tr>
+          <tr><td>Conversões por época (gen)</td><td class="highlight">+100 (gerador)</td></tr>
+          <tr><td><strong>Total por época</strong></td><td class="highlight"><strong>300 conversões</strong></td></tr>
+          <tr><td><strong>Total (5 épocas)</strong></td><td class="highlight"><strong>1.500 conversões</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout danger">
+      <strong>Problema:</strong> Cada conversão <code>torch.from_numpy()</code> envolve:
+      <ul style="margin-top:.5rem; padding-left:1.5rem;">
+        <li>Alocação de memória no device (CPU/GPU)</li>
+        <li>Cópia de dados do buffer NumPy para o buffer PyTorch</li>
+        <li>Sincronização de memória entre frameworks</li>
+      </ul>
+      Com 1.500 conversões, esse overhead se torna significativo.
+    </div>
+  </section>
+
+  <!-- TVAE LOOP -->
+  <section id="tvae-loop">
+    <h2>Loop de Treinamento do TVAE</h2>
+    <p>
+      O TVAE adota uma abordagem diferente: converte o <strong>dataset inteiro uma única vez</strong>
+      antes de iniciar o treinamento:
+    </p>
+
+    <div class="code-block">
+      <header><span class="file">ctgan/synthesizers/tvae.py — método fit()</span><span>linha 155</span></header>
+      <pre><code># ✅ CONVERSÃO ÚNICA — dataset inteiro convertido uma vez
+dataset = TensorDataset(
+    torch.from_numpy(train_data.astype('float32')).to(self._device)
+)
+loader = DataLoader(dataset, batch_size=self._batch_size, shuffle=True)
+
+# Treinamento itera sobre batches pré-convertidos
+for i in iterator:
+    for data in loader:
+        optimizerAE.zero_grad()
+
+        # data já é um tensor PyTorch — sem conversão
+        loss_1, loss_2 = _loss_function(...)
+        loss = loss_1 + loss_2
+        loss.backward()
+        optimizerAE.step()</code></pre>
+    </div>
+
+    <h3>Contagem de Conversões</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parâmetro</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Conversões totais</td><td class="highlight">1 (únicas)</td></tr>
+          <tr><td>Conversões por batch</td><td>0 (já convertido)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout success">
+      <strong>Vantagem:</strong> Com apenas 1 conversão, o overhead de transferência
+      de dados é <strong>inexistente</strong> durante o treinamento. O DataLoader
+      itera sobre tensores já alocados no device.
+    </div>
+  </section>
+
+  <!-- ANÁLISE -->
+  <section id="analise">
+    <h2>Análise Detalhada do Overhead</h2>
+
+    <h3>1. Custo da Conversão NumPy → Tensor</h3>
+    <p>
+      A função <code>torch.from_numpy()</code> cria um tensor PyTorch que compartilha
+      a memória com o array NumPy original. No entanto, quando combinada com
+      <code>.to(self._device)</code>, ocorre uma cópia de dados:
+    </p>
+
+    <div class="code-block">
+      <header><span class="file">PyTorch internals</span><span>o que acontece por baixo dos panos</span></header>
+      <pre><code># torch.from_numpy() — cria tensor compartilhando memória
+tensor = torch.from_numpy(numpy_array)  # zero-copy, mas fica no CPU
+
+# .to(device) — copia para GPU (ou mantém no CPU com nova alocação)
+tensor = tensor.to(self._device)  # cópia de dados</code></pre>
+    </div>
+
+    <p>
+      Para cada batch de tamanho 500 com 20 colunas codificadas:
+    </p>
+    <ul style="margin-bottom:1rem; padding-left:1.5rem;">
+      <li>Tamanho do batch: 500 × 20 × 4 bytes (float32) = <strong>40 KB</strong></li>
+      <li>Custo por conversão: ~40 KB copiados + alocação de memória</li>
+      <li>CTGAN: 1.500 × 40 KB = <strong>60 MB copiados</strong> apenas em conversões</li>
+      <li>TVAE: 1 × ~4 MB = <strong>4 MB copiados</strong> (uma única vez)</li>
+    </ul>
+
+    <h3>2. Fragmentação de Memória</h3>
+    <p>
+      conversões repetidas causam fragmentação de memória, forçando o allocator
+      do PyTorch a gerenciar múltiplos blocos pequenos em vez de um bloco contíguo.
+      Isso impacta:
+    </p>
+    <ul style="margin-bottom:1rem; padding-left:1.5rem;">
+      <li>Cache locality do CPU</li>
+      <li>Eficiência do garbage collector</li>
+      <li> throughput da GPU (quando aplicável)</li>
+    </ul>
+
+    <h3>3. Overhead do DataSampler</h3>
+    <p>
+      O CTGAN utiliza o <code>DataSampler</code> para amostragem condicional,
+      que retorna arrays NumPy. Isso impede o uso de <code>DataLoader</code>
+      do PyTorch, que gerencia batching de forma otimizada:
+    </p>
+
+    <div class="code-block">
+      <header><span class="file">ctgan/data_sampler.py — método sample_data()</span><span>retorna NumPy</span></header>
+      <pre><code>def sample_data(self, data, n, col, opt):
+    """Sample data from original training data."""
+    if col is None:
+        idx = np.random.randint(len(data), size=n)
+        return data[idx]  # ← retorna array NumPy
+
+    idx = []
+    for c, o in zip(col, opt):
+        idx.append(np.random.choice(self._rid_by_cat_cols[c][o]))
+
+    return data[idx]  # ← retorna array NumPy</code></pre>
+    </div>
+
+    <div class="callout info">
+      <strong>Nota:</strong> O <code>DataSampler</code> é necessário para a
+      amostragem condicional do CTGAN (uma das 5 contribuições do paper).
+      Não é possível substituí-lo por um <code>DataLoader</code> padrão sem
+      perder essa funcionalidade.
+    </div>
+  </section>
+
+  <!-- BENCHMARK -->
+  <section id="benchmark">
+    <h2>Dados de Benchmark</h2>
+    <p>
+      Resultados obtidos em ambiente controlado com diferentes volumes de dados:
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cenário</th>
+            <th>CTGAN</th>
+            <th>TVAE</th>
+            <th>Ratio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>10k linhas, 10 cols, 1 época</td>
+            <td>13.9s</td>
+            <td>6.8s</td>
+            <td class="highlight">2.04x</td>
+          </tr>
+          <tr>
+            <td>50k linhas, 20 cols, 5 épocas</td>
+            <td>229.1s</td>
+            <td>85.5s</td>
+            <td class="highlight">2.68x</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Memória de Pico</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cenário</th>
+            <th>CTGAN</th>
+            <th>TVAE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>10k linhas, 10 cols</td>
+            <td>135.7 MB</td>
+            <td>19.3 MB</td>
+          </tr>
+          <tr>
+            <td>50k linhas, 20 cols</td>
+            <td>308.1 MB</td>
+            <td>191.8 MB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <strong>Observação:</strong> A diferença de memória não é causada apenas
+      pelas conversões, mas também pela arquitetura do CTGAN (GAN com discriminador
+      e gerador separados) vs TVAE (autoencoder com encoder + decoder).
+    </div>
+  </section>
+
+  <!-- SOLUÇÃO -->
+  <section id="solucao">
+    <h2>Proposta de Solução</h2>
+    <p>
+      A solução é adaptar o CTGAN para utilizar <code>DataLoader</code> do PyTorch,
+      convertendo o dataset inteiro uma única vez — similar ao que o TVAE já faz.
+    </p>
+
+    <h3>Estratégia</h3>
+    <div class="callout success">
+      <strong>Objetivo:</strong> Eliminar as conversões repetidas NumPy → Tensor
+      movendo a conversão para antes do loop de treinamento, mantendo a
+      funcionalidade de amostragem condicional do CTGAN.
+    </div>
+
+    <h3>Abordagem</h3>
+    <p>
+      Criar um <code>CondicionalDataset</code> que encapsule os dados já convertidos
+      em tensores PyTorch, e um <code>CondicionalSampler</code> que realize a
+      amostragem condicional diretamente sobre tensores.
+    </p>
+
+    <details>
+      <summary>Por que não substituir o DataSampler完全?</summary>
+      <div class="detail-body">
+        <p>
+          O <code>DataSampler</code> é fundamental para a amostragem condicional
+          do CTGAN. Ele seleciona batches que satisfazem vetores de condição
+          específicos, permitindo que o gerador aprenda relações condicionais.
+          Removê-lo comprometeria a qualidade dos dados sintéticos gerados.
+        </p>
+        <p>
+          A solução proposta <strong>mantém a lógica de amostragem condicional</strong>,
+          mas move a conversão de dados para antes do loop, eliminando o overhead
+          de conversão repetida.
+        </p>
+      </div>
+    </details>
+  </section>
+
+  <!-- IMPLEMENTAÇÃO -->
+  <section id="implementacao">
+    <h2>Implementação Proposta</h2>
+
+    <h3>1. Novo Arquivo: <code>ctgan/condicional_dataset.py</code></h3>
+
+    <div class="code-block">
+      <header><span class="file">ctgan/condicional_dataset.py</span><span>novo arquivo</span></header>
+      <pre><code>"""CondicionalDataset — Dataset PyTorch com suporte a amostragem condicional."""
+
+import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader
+
+
+class CondicionalDataset(Dataset):
+    """Dataset que mantém dados convertidos em tensores PyTorch.
+
+    Elimina a necessidade de conversão NumPy → Tensor a cada batch.
+    """
+    
+    def __init__(self, data_numpy, device='cpu'):
+        """Converte o dataset inteiro para tensor uma única vez.
+        
+        Args:
+            data_numpy: array NumPy de forma (n_rows, n_features)
+            device: device PyTorch ('cpu' ou 'cuda')
+        """
+        self.data = torch.from_numpy(
+            data_numpy.astype('float32')
+        ).to(device)
+        self.n_rows = self.data.shape[0]
+    
+    def __len__(self):
+        return self.n_rows
+    
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+
+class CondicionalSampler:
+    """Sampler que realiza amostragem condicional sobre tensores PyTorch.
+    
+    Mantém a lógica de amostragem condicional do CTGAN original,
+    mas opera diretamente sobre tensores já convertidos.
+    """
+    
+    def __init__(self, dataset, output_info, log_frequency):
+        """Inicializa o sampler com os dados já convertidos.
+        
+        Args:
+            dataset: CondicionalDataset com dados em tensores
+            output_info: informação de saída do DataTransformer
+            log_frequency: se True, usa frequência logarítmica
+        """
+        self._dataset = dataset
+        self._data_length = len(dataset)
+        
+        def is_discrete_column(column_info):
+            return len(column_info) == 1 and column_info[0].activation_fn == 'softmax'
+        
+        n_discrete_columns = sum([
+            1 for column_info in output_info if is_discrete_column(column_info)
+        ])
+        
+        self._discrete_column_matrix_st = np.zeros(n_discrete_columns, dtype='int32')
+        self._rid_by_cat_cols = []
+        
+        # Converter tensor para NumPy para indexação (necessário para np.nonzero)
+        data_numpy = dataset.data.cpu().numpy()
+        
+        st = 0
+        for column_info in output_info:
+            if is_discrete_column(column_info):
+                span_info = column_info[0]
+                ed = st + span_info.dim
+                
+                rid_by_cat = []
+                for j in range(span_info.dim):
+                    rid_by_cat.append(np.nonzero(data_numpy[:, st + j])[0])
+                self._rid_by_cat_cols.append(rid_by_cat)
+                st = ed
+            else:
+                st += sum([span_info.dim for span_info in column_info])
+        
+        # Preparar matriz de probabilidades
+        max_category = max(
+            [column_info[0].dim for column_info in output_info if is_discrete_column(column_info)],
+            default=0,
+        )
+        
+        self._discrete_column_cond_st = np.zeros(n_discrete_columns, dtype='int32')
+        self._discrete_column_n_category = np.zeros(n_discrete_columns, dtype='int32')
+        self._discrete_column_category_prob = np.zeros((n_discrete_columns, max_category))
+        self._n_discrete_columns = n_discrete_columns
+        self._n_categories = sum([
+            column_info[0].dim for column_info in output_info if is_discrete_column(column_info)
+        ])
+        
+        st = 0
+        current_id = 0
+        current_cond_st = 0
+        for column_info in output_info:
+            if is_discrete_column(column_info):
+                span_info = column_info[0]
+                ed = st + span_info.dim
+                category_freq = np.sum(data_numpy[:, st:ed], axis=0)
+                if log_frequency:
+                    category_freq = np.log(category_freq + 1)
+                category_prob = category_freq / np.sum(category_freq)
+                self._discrete_column_category_prob[current_id, : span_info.dim] = category_prob
+                self._discrete_column_cond_st[current_id] = current_cond_st
+                self._discrete_column_n_category[current_id] = span_info.dim
+                current_cond_st += span_info.dim
+                current_id += 1
+                st = ed
+            else:
+                st += sum([span_info.dim for span_info in column_info])
+    
+    def _random_choice_prob_index(self, discrete_column_id):
+        probs = self._discrete_column_category_prob[discrete_column_id]
+        r = np.expand_dims(np.random.rand(probs.shape[0]), axis=1)
+        return (probs.cumsum(axis=1) > r).argmax(axis=1)
+    
+    def sample_condvec(self, batch):
+        """Gera o vetor condicional para treinamento.
+        
+        Returns:
+            cond, mask, discrete_column_id, category_id_in_col
+        """
+        if self._n_discrete_columns == 0:
+            return None
+        
+        discrete_column_id = np.random.choice(
+            np.arange(self._n_discrete_columns), batch
+        )
+        
+        cond = np.zeros((batch, self._n_categories), dtype='float32')
+        mask = np.zeros((batch, self._n_discrete_columns), dtype='float32')
+        mask[np.arange(batch), discrete_column_id] = 1
+        category_id_in_col = self._random_choice_prob_index(discrete_column_id)
+        category_id = self._discrete_column_cond_st[discrete_column_id] + category_id_in_col
+        cond[np.arange(batch), category_id] = 1
+        
+        return cond, mask, discrete_column_id, category_id_in_col
+    
+    def sample_data(self, n, col, opt):
+        """Amostra dados diretamente do tensor PyTorch.
+        
+        Args:
+            n: número de linhas para amostrar
+            col: colunas discretas para condicionar
+            opt: valores das colunas
+            
+        Returns:
+            tensor PyTorch já no device correto
+        """
+        if col is None:
+            idx = np.random.randint(self._data_length, size=n)
+            return self._dataset[torch.tensor(idx, dtype=torch.long)]
+        
+        idx = []
+        for c, o in zip(col, opt):
+            idx.append(np.random.choice(self._rid_by_cat_cols[c][o]))
+        
+        idx_tensor = torch.tensor(idx, dtype=torch.long)
+        return self._dataset[idx_tensor]
+    
+    def dim_cond_vec(self):
+        return self._n_categories</code></pre>
+    </div>
+
+    <h3>2. Modificação: <code>ctgan/synthesizers/ctgan.py</code></h3>
+
+    <div class="code-block">
+      <header><span class="file">ctgan/synthesizers/ctgan.py</span><span>modificação no método fit()</span></header>
+      <pre><code># ADICIONAR no topo do arquivo:
+from ctgan.condicional_dataset import CondicionalDataset, CondicionalSampler
+
+# NO MÉTODO fit(), SUBSTITUIR:
+# ────────────────────────────────────────────────────────────────
+# ANTES (linhas 356-362):
+# ────────────────────────────────────────────────────────────────
+self._transformer = DataTransformer()
+self._transformer.fit(train_data, discrete_columns)
+train_data = self._transformer.transform(train_data)
+
+self._data_sampler = DataSampler(
+    train_data, self._transformer.output_info_list, self._log_frequency
+)
+
+# ────────────────────────────────────────────────────────────────
+# DEPOIS:
+# ────────────────────────────────────────────────────────────────
+self._transformer = DataTransformer()
+self._transformer.fit(train_data, discrete_columns)
+train_data = self._transformer.transform(train_data)
+
+# Criar dataset com conversão ÚNICA para tensor
+condicional_dataset = CondicionalDataset(train_data, self._device)
+
+# Sampler condicional opera sobre tensores
+self._data_sampler = CondicionalSampler(
+    condicional_dataset, self._transformer.output_info_list, self._log_frequency
+)
+
+# ────────────────────────────────────────────────────────────────
+# NO LOOP DE TREINAMENTO (linha 414-433):
+# ────────────────────────────────────────────────────────────────
+# ANTES:
+real = self._data_sampler.sample_data(
+    train_data, self._batch_size, col, opt
+)
+# ...
+real = torch.from_numpy(real.astype('float32')).to(self._device)
+
+# DEPOIS:
+real = self._data_sampler.sample_data(
+    self._batch_size, col, opt
+)
+# ← SEM conversão torch.from_numpy() — já é tensor!</code></pre>
+    </div>
+
+    <h3>3. Métodos Impactados</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Arquivo</th>
+            <th>Método</th>
+            <th>Tipo</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ctgan/condicional_dataset.py</code></td>
+            <td><code>CondicionalDataset.__init__</code></td>
+            <td><span class="tag accent">Novo</span></td>
+            <td>Converte NumPy → Tensor uma vez</td>
+          </tr>
+          <tr>
+            <td><code>ctgan/condicional_dataset.py</code></td>
+            <td><code>CondicionalDataset.__getitem__</code></td>
+            <td><span class="tag accent">Novo</span></td>
+            <td>Acesso direto ao tensor por índice</td>
+          </tr>
+          <tr>
+            <td><code>ctgan/condicional_dataset.py</code></td>
+            <td><code>CondicionalSampler.__init__</code></td>
+            <td><span class="tag accent">Novo</span></td>
+            <td>Inicializa sampler com tensor convertido</td>
+          </tr>
+          <tr>
+            <td><code>ctgan/condicional_dataset.py</code></td>
+            <td><code>CondicionalSampler.sample_data</code></td>
+            <td><span class="tag accent">Novo</span></td>
+            <td>Amostra tensores sem conversão</td>
+          </tr>
+          <tr>
+            <td><code>ctgan/condicional_dataset.py</code></td>
+            <td><code>CondicionalSampler.sample_condvec</code></td>
+            <td><span class="tag accent">Novo</span></td>
+            <td>Gera vetores condicionais</td>
+          </tr>
+          <tr>
+            <td><code>ctgan/synthesizers/ctgan.py</code></td>
+            <td><code>CTGAN.fit</code></td>
+            <td><span class="tag warning">Modificado</span></td>
+            <td>Usa CondicionalDataset + CondicionalSampler</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>4. Estimativa de Melhoria</h3>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="value">1.500</div>
+        <div class="label">Conversões eliminadas</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">~30%</div>
+        <div class="label">Redução esperada no tempo</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">1</div>
+        <div class="label">Conversão restante</div>
+      </div>
+    </div>
+
+    <div class="callout success">
+      <strong>Resultado esperado:</strong> Com esta otimização, o tempo de treinamento
+      do CTGAN deve se aproximar do TVAE, mantendo a funcionalidade de amostragem
+      condicional intacta.
+    </div>
+  </section>
+
+  <section>
+    <h2>Conclusão</h2>
+    <p>
+      A diferença de performance entre CTGAN e TVAE não é intrínseca à complexidade
+      dos modelos, mas sim resultado de uma diferença de implementação na gestão
+      de dados durante o treinamento. A solução proposta elimina o overhead de
+      conversão repetida movendo a transformação NumPy → Tensor para antes do
+      loop de treinamento, mantendo toda a funcionalidade original do CTGAN.
+    </p>
+  </section>
+
+  <div class="nav-arrows">
+    <a href="ctgan-rdt-uso.html">← CTGAN × RDT Análise</a>
+    <a href="ctgan-documentation.html">Documentação Principal →</a>
+  </div>
+
+  <footer>
+    <p>
+      Documentação CTGAN — Análise de Performance<br>
+      <a href="https://github.com/maxsonferovante/ctgan-documentation">GitHub</a>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  // Active TOC
+  const tocLinks = document.querySelectorAll('.toc a');
+  const sections = [];
+  tocLinks.forEach(a => {
+    const id = a.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ el, a });
+  });
+
+  function updateToc() {
+    let current = sections[0];
+    for (const s of sections) {
+      if (s.el.getBoundingClientRect().top <= 100) current = s;
+    }
+    tocLinks.forEach(a => a.classList.remove('active'));
+    if (current) current.a.classList.add('active');
+  }
+
+  window.addEventListener('scroll', updateToc, { passive: true });
+  updateToc();
+</script>
+
+</body>
+</html>
