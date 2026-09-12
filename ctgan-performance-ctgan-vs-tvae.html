@@ -1082,6 +1082,207 @@ real = self._data_sampler.sample_data(
     </div>
   </section>
 
+  <!-- COMPARAÇÃO COMPLETA 4 CENÁRIOS -->
+  <section id="comparacao-completa">
+    <h2>Comparação Completa: 4 Cenários</h2>
+    <p>
+      Análise completa dos 4 cenários possíveis: Pandas/Polars com e sem otimização.
+    </p>
+
+    <h3>Cenário de Teste</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parâmetro</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Linhas</td><td class="highlight">50.000</td></tr>
+          <tr><td>Colunas</td><td class="highlight">20</td></tr>
+          <tr><td>Épocas</td><td class="highlight">5</td></tr>
+          <tr><td>Batch Size</td><td>500</td></tr>
+          <tr><td>Iterações</td><td>1</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Tabela Comparativa: Tempo de Treinamento (CTGAN)</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cenário</th>
+            <th>Tempo</th>
+            <th>Speedup vs Original</th>
+            <th>Memória</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1. Pandas Normal</td>
+            <td>229.1s</td>
+            <td>— (baseline)</td>
+            <td>308.1 MB</td>
+          </tr>
+          <tr>
+            <td>2. Polars Normal</td>
+            <td>77.1s</td>
+            <td class="highlight">2.97x vs Pandas</td>
+            <td>164.4 MB</td>
+          </tr>
+          <tr>
+            <td>3. Pandas Otimizado</td>
+            <td class="highlight">52.5s</td>
+            <td class="highlight">4.36x vs Pandas</td>
+            <td>246.4 MB</td>
+          </tr>
+          <tr>
+            <td>4. Polars Otimizado</td>
+            <td>75.1s</td>
+            <td>3.05x vs Pandas</td>
+            <td class="highlight">164.4 MB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Tabela Comparativa: Tempo de Treinamento (TVAE)</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cenário</th>
+            <th>Tempo</th>
+            <th>Speedup vs Original</th>
+            <th>Memória</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1. Pandas Normal</td>
+            <td>88.9s</td>
+            <td>— (baseline)</td>
+            <td>191.8 MB</td>
+          </tr>
+          <tr>
+            <td>2. Polars Normal</td>
+            <td>57.5s</td>
+            <td class="highlight">1.55x vs Pandas</td>
+            <td>164.4 MB</td>
+          </tr>
+          <tr>
+            <td>3. Pandas Otimizado</td>
+            <td class="highlight">32.8s</td>
+            <td class="highlight">2.71x vs Pandas</td>
+            <td>191.6 MB</td>
+          </tr>
+          <tr>
+            <td>4. Polars Otimizado</td>
+            <td>55.6s</td>
+            <td>1.60x vs Pandas</td>
+            <td class="highlight">164.4 MB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Memória de Pico</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cenário</th>
+            <th>CTGAN</th>
+            <th>TVAE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1. Pandas Normal</td>
+            <td>308.1 MB</td>
+            <td>191.8 MB</td>
+          </tr>
+          <tr>
+            <td>2. Polars Normal</td>
+            <td class="highlight">164.4 MB</td>
+            <td class="highlight">164.4 MB</td>
+          </tr>
+          <tr>
+            <td>3. Pandas Otimizado</td>
+            <td>246.4 MB</td>
+            <td>191.6 MB</td>
+          </tr>
+          <tr>
+            <td>4. Polars Otimizado</td>
+            <td class="highlight">164.4 MB</td>
+            <td class="highlight">164.4 MB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Visualização dos Resultados</h3>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="value">4.36x</div>
+        <div class="label">Melhor speedup (Pandas Otimizado)</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">46.5%</div>
+        <div class="label">Melhor redução memória (Polars)</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">52.5s</div>
+        <div class="label">Menor tempo (Pandas Otimizado)</div>
+      </div>
+      <div class="metric-card">
+        <div class="value">164.4 MB</div>
+        <div class="label">Menor memória (Polars)</div>
+      </div>
+    </div>
+
+    <h3>Análise por Framework</h3>
+
+    <details>
+      <summary>Pandas: Maior velocidade, mais memória</summary>
+      <div class="detail-body">
+        <p>
+          O Pandas otimizado é o mais rápido para CTGAN (52.5s), mas usa mais
+          memória (246.4 MB). A otimização de conversão NumPy→Tensor é mais
+          eficaz porque o RDT original é mais maduro e otimizado para Pandas.
+        </p>
+        <p><strong>Melhor cenário:</strong> Quando a velocidade é prioridade e
+          há memória suficiente disponível.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Polars: Menos memória, velocidade moderada</summary>
+      <div class="detail-body">
+        <p>
+          O Polars usa significativamente menos memória (164.4 MB vs 246.4 MB
+          do Pandas otimizado), mas é mais lento (75.1s vs 52.5s). A otimização
+          de conversão tem impacto menor porque o bottleneck está na conversão
+          Polars↔NumPy no DataTransformer.
+        </p>
+        <p><strong>Melhor cenário:</strong> Quando a memória é limitada ou
+          quando se trabalha com datasets muito grandes.</p>
+      </div>
+    </details>
+
+    <div class="callout info">
+      <strong>Recomendação:</strong> Para a maioria dos casos de uso, o
+      <strong>Pandas otimizado</strong> é a melhor escolha (mais rápido).
+      Use Polars quando a memória for um constraint crítico.
+    </div>
+  </section>
+
   <section>
     <h2>Conclusão</h2>
     <p>
