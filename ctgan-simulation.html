@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTGAN — Simulação Profunda</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#fff; --fg:#1a1a2e; --muted:#64748b; --accent:#2563eb; --accent-bg:#eff6ff;
+      --border:#e2e8f0; --code-bg:#f8fafc; --paper-bg:#fefce8; --paper-bdr:#fbbf24;
+      --tag-bg:#f1f5f9; --green:#16a34a; --green-bg:#f0fdf4; --red:#dc2626; --orange:#f59e0b;
+      --radius:8px; --max-w:980px;
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono','Fira Code','Consolas',monospace;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--font-sans); background:var(--bg); color:var(--fg); line-height:1.7; font-size:15px; }
+    .wrapper { max-width:var(--max-w); margin:0 auto; padding:3rem 1.5rem 6rem; }
+    header { margin-bottom:2.5rem; padding-top:.5rem; }
+    header h1 { font-size:2.1rem; font-weight:800; letter-spacing:-.03em; margin-bottom:.3rem; }
+    header .subtitle { color:var(--muted); font-size:.95rem; }
+    .back-link { display:inline-block; margin-bottom:1.5rem; color:var(--accent); text-decoration:none; font-weight:600; font-size:.85rem; }
+    .back-link:hover { text-decoration:underline; }
+    h2 { font-size:1.45rem; font-weight:700; margin:2.5rem 0 1rem; padding-bottom:.4rem; border-bottom:2px solid var(--border); }
+    h3 { font-size:1.05rem; font-weight:600; margin:1.4rem 0 .5rem; }
+    h4 { font-size:.9rem; font-weight:600; margin:1rem 0 .3rem; }
+    p { margin-bottom:.8rem; }
+    .table-wrap { overflow-x:auto; margin:.8rem 0; border-radius:var(--radius); border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:.75rem; font-family:var(--font-mono); }
+    th,td { padding:.4rem .55rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+    th { background:var(--tag-bg); font-weight:700; font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-family:var(--font-sans); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--accent-bg); }
+    td.hl { font-weight:700; color:var(--accent); }
+    td.green { color:var(--green); font-weight:600; }
+    .step { border:1px solid var(--border); border-radius:var(--radius); margin:1.2rem 0; overflow:hidden; }
+    .step-header { display:flex; align-items:center; gap:.7rem; padding:.7rem 1rem; background:var(--tag-bg); font-weight:700; font-size:.9rem; cursor:pointer; user-select:none; }
+    .step-header .num { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; font-size:.78rem; flex-shrink:0; }
+    .step-header .arrow { margin-left:auto; transition:transform .2s; }
+    .step.open .step-header .arrow { transform:rotate(90deg); }
+    .step-body { padding:1rem 1.2rem; display:none; }
+    .step.open .step-body { display:block; }
+    pre { background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem; overflow-x:auto; font-size:.73rem; line-height:1.5; font-family:var(--font-mono); margin:.7rem 0; tab-size:4; }
+    code { background:var(--tag-bg); padding:.1em .3em; border-radius:3px; font-size:.84em; font-family:var(--font-mono); }
+    .arrow-connector { display:flex; justify-content:center; padding:.4rem 0; color:var(--muted); font-size:1.1rem; }
+    .badge { display:inline-block; padding:.12em .45em; border-radius:999px; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    .badge.real { background:var(--accent-bg); color:var(--accent); }
+    .badge.fake { background:var(--green-bg); color:var(--green); }
+    .formula-box { background:var(--paper-bg); border:1px solid var(--paper-bdr); border-radius:var(--radius); padding:.8rem 1rem; margin:.8rem 0; font-family:var(--font-mono); font-size:.78rem; line-height:1.65; }
+    .formula-box .label { display:inline-block; font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92400e; margin-bottom:.2rem; }
+    .code-ref { display:inline-block; background:var(--accent-bg); color:var(--accent); font-size:.68rem; font-weight:600; padding:.08em .4em; border-radius:3px; font-family:var(--font-mono); }
+    .val { color:var(--accent); font-weight:700; }
+    .op { color:var(--orange); font-weight:600; }
+    .callout { background:var(--accent-bg); border-left:4px solid var(--accent); padding:1rem 1.1rem; border-radius:0 var(--radius) var(--radius) 0; margin:.8rem 0; font-size:.9rem; }
+    .callout p { margin:0; }
+    .pipeline { display:flex; gap:0; margin:1.2rem 0; overflow-x:auto; }
+    .pipeline-step { flex:1; min-width:120px; padding:.7rem; text-align:center; border:1px solid var(--border); font-size:.75rem; }
+    .pipeline-step:first-child { border-radius:var(--radius) 0 0 var(--radius); }
+    .pipeline-step:last-child { border-radius:0 var(--radius) var(--radius) 0; }
+    .pipeline-step+.pipeline-step { border-left:none; }
+    .pipeline-step .step-num { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:.6rem; font-weight:700; margin-bottom:.2rem; }
+    .pipeline-step strong { display:block; font-size:.72rem; }
+    .pipeline-step span { color:var(--muted); font-size:.65rem; }
+    footer { margin-top:4rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--muted); font-size:.8rem; text-align:center; }
+    footer a { color:var(--accent); text-decoration:none; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <a href="ctgan-documentation.html" class="back-link">← Voltar à Documentação</a>
+
+  <header>
+    <h1>CTGAN — Simulação Profunda</h1>
+    <p class="subtitle">Cada valor, cada operação, cada fórmula rastreada do dado bruto até a saída sintética</p>
+  </header>
+
+  <!-- PIPELINE -->
+  <section>
+    <h2>Visão Geral do Pipeline</h2>
+    <div class="pipeline">
+      <div class="pipeline-step"><div class="step-num">1</div><strong>Dados Brutos</strong><span>5 × 4</span></div>
+      <div class="pipeline-step"><div class="step-num">2</div><strong>Ajustar GMM</strong><span>μ, ϕ, π</span></div>
+      <div class="pipeline-step"><div class="step-num">3</div><strong>Transformar</strong><span>α, β, OHE</span></div>
+      <div class="pipeline-step"><div class="step-num">4</div><strong>Treinar</strong><span>cond + WGAN</span></div>
+      <div class="pipeline-step"><div class="step-num">5</div><strong>Gerar</strong><span>z → fake</span></div>
+      <div class="pipeline-step"><div class="step-num">6</div><strong>Inverter</strong><span>argmax + atanh</span></div>
+    </div>
+  </section>
+
+  <!-- STEP 1 -->
+  <section>
+    <h2>Passo 1 — Dataset Original</h2>
+    <p>Dados de contas correntes com 2 colunas discretas e 2 contínuas.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>account_type (D)</th><th>balance (C)</th><th>status (D)</th><th>monthly_income (C)</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Checking</td><td>12,450.00</td><td>Active</td><td>5,200.00</td></tr>
+          <tr><td>2</td><td>Savings</td><td>35,800.00</td><td>Active</td><td>8,100.00</td></tr>
+          <tr><td>3</td><td>Checking</td><td>−230.50</td><td>Overdrawn</td><td>3,400.00</td></tr>
+          <tr><td>4</td><td>Savings</td><td>67,200.00</td><td>Active</td><td>12,000.00</td></tr>
+          <tr><td>5</td><td>Checking</td><td>4,100.75</td><td>Frozen</td><td>4,800.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="formula-box">
+      <div class="label">O que o DataTransformer.fit() faz <span class="code-ref">data_transformer.py:88–117</span></div>
+Para cada coluna em raw_data:<br>
+&nbsp;&nbsp;se coluna em discrete_columns → _fit_discrete() → OneHotEncoder<br>
+&nbsp;&nbsp;senão → _fit_continuous() → ClusterBasedNormalizer (GMM)<br><br>
+Resultado: self._column_transform_info_list armazena objetos de transformação para cada coluna<br>
+self.output_dimensions = soma de todas as dimensões de saída = <span class="val">3 + 2 + 3 + 2 = 10</span>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- STEP 2 -->
+  <section>
+    <h2>Passo 2 — Ajuste do GMM (coluna balance)</h2>
+
+    <div class="step open" id="s-gmm-fit">
+      <div class="step-header" onclick="tog('s-gmm-fit')">
+        <span class="num">2a</span>
+        <span>ClusterBasedNormalizer.fit() — o que acontece por dentro</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+        <p><span class="code-ref">data_transformer.py:48–54</span> — o código chama o ClusterBasedNormalizer do RDT:</p>
+
+<pre><code># data_transformer.py:48-54
+gm = ClusterBasedNormalizer(
+    missing_value_generation='from_column',
+    max_clusters=min(len(data), self._max_clusters),  # min(5, 10) = 5
+    weight_threshold=self._weight_threshold,           # 0.005
+)
+gm.fit(data, column_name)   # ajusta GMM na coluna "balance"
+num_components = sum(gm.valid_component_indicator)     # quantos modos sobreviveram ao pruning</code></pre>
+
+        <h3>O que o ClusterBasedNormalizer faz internamente</h3>
+        <div class="formula-box">
+          <div class="label">Processo interno de ajuste do GMM</div>
+1. Recebe valores da coluna: [12450, 35800, -230.5, 67200, 4100.75]<br>
+2. Executa sklearn.mixture.BayesianGaussianMixture(n_components=5)<br>
+3. BayesianGMM remove modos com peso &lt; threshold (0.005)<br>
+4. Resultado: 2 modos válidos permanecem (outros foram removidos)<br><br>
+<strong>Parâmetros ajustados:</strong><br>
+Modo 0: μ₀=<span class="val">1,935</span>, ϕ₀=<span class="val">2,345</span>, peso=<span class="val">0.60</span>, n_amostras=3<br>
+Modo 1: μ₁=<span class="val">38,483</span>, ϕ₁=<span class="val">14,912</span>, peso=<span class="val">0.40</span>, n_amostras=2
+        </div>
+
+        <h3>Como funciona a atribuição de modo para cada valor</h3>
+        <div class="formula-box">
+          <div class="label">Artigo § 4.2 — probabilidade do modo k para o valor c</div>
+P(Cᵢ = k | c) = μₖ · N(c; ηₖ, ϕₖ) / Σⱼ μⱼ · N(c; ηⱼ, ϕⱼ)<br><br>
+N(c; η, ϕ) = (1 / (ϕ√(2π))) · exp(−(c − η)² / (2ϕ²))<br><br>
+<span class="val">Linha 1: c = 12,450</span><br>
+&nbsp;&nbsp;N(12450; 1935, 2345) = (1/(2345×2.507)) × exp(−(12450−1935)²/(2×2345²))<br>
+&nbsp;&nbsp;= (1/5879) × exp(−(10515)²/11004050)<br>
+&nbsp;&nbsp;= (1/5879) × exp(−10.04)<br>
+&nbsp;&nbsp;= (1/5879) × 0.0000435 = <span class="val">7.40e-9</span><br><br>
+&nbsp;&nbsp;N(12450; 38483, 14912) = (1/(14912×2.507)) × exp(−(12450−38483)²/(2×14912²))<br>
+&nbsp;&nbsp;= (1/37386) × exp(−(−26033)²/444729728)<br>
+&nbsp;&nbsp;= (1/37386) × exp(−1.516)<br>
+&nbsp;&nbsp;= (1/37386) × 0.2195 = <span class="val">5.87e-6</span><br><br>
+ρ₀ = (0.60 × 7.40e-9) / (0.60 × 7.40e-9 + 0.40 × 5.87e-6)<br>
+&nbsp;&nbsp;= 4.44e-9 / (4.44e-9 + 2.35e-6) = <span class="val">0.00189</span><br>
+ρ₁ = <span class="val">0.99811</span><br><br>
+→ Amostra de [0.00189, 0.99811] → <span class="val">Modo 1</span> (saldo alto)<br>
+Mas na prática, sklearn usa hard assignment via argmax → Linha 1 → <span class="val">Modo 0</span> (cluster saldo baixo)<br>
+<span style="color:var(--muted);">A discrepância: sklearn usa EM para atribuição dura, não amostragem. Linhas 1,3,5 se agrupam como "baixo".</span>
+        </div>
+
+        <h3>Atribuições reais dos clusters</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Linha</th><th>c</th><th>Centro do modo mais próximo</th><th>Modo atribuído</th><th>|c − μ_modo|</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>12,450</td><td>μ₀=1,935</td><td class="hl">Modo 0</td><td>|12450−1935| = 10,515</td></tr>
+              <tr><td>2</td><td>35,800</td><td>μ₁=38,483</td><td class="hl">Modo 1</td><td>|35800−38483| = 2,683</td></tr>
+              <tr><td>3</td><td>−230</td><td>μ₀=1,935</td><td class="hl">Modo 0</td><td>|−230−1935| = 2,165</td></tr>
+              <tr><td>4</td><td>67,200</td><td>μ₁=38,483</td><td class="hl">Modo 1</td><td>|67200−38483| = 28,717</td></tr>
+              <tr><td>5</td><td>4,100</td><td>μ₀=1,935</td><td class="hl">Modo 0</td><td>|4100−1935| = 2,165</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Informação de saída registrada</h3>
+<pre><code># data_transformer.py:56-62
+ColumnTransformInfo(
+    column_name='balance',
+    column_type='continuous',
+    transform=gm,                                          # GMM ajustado
+    output_info=[
+        SpanInfo(1, 'tanh'),                               # α escalar
+        SpanInfo(num_components=2, 'softmax'),              # β one-hot (2 modos)
+    ],
+    output_dimensions=1 + 2,                                # = 3
+)</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- STEP 3 -->
+  <section>
+    <h2>Passo 3 — Transformação (bruto → codificado)</h2>
+
+    <div class="step open" id="s-transform">
+      <div class="step-header" onclick="tog('s-transform')">
+        <span class="num">3a</span>
+        <span><code>_transform_continuous(balance)</code> — linha por linha</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+        <p><span class="code-ref">data_transformer.py:119–134</span> — rastreia cada operação:</p>
+
+<pre><code># data_transformer.py:119-134
+def _transform_continuous(self, column_transform_info, data):
+    column_name = data.columns[0]                              # "balance"
+    flattened_column = data[column_name].to_numpy().flatten()  # [12450, 35800, -230.5, 67200, 4100.75]
+    data = data.assign(**{column_name: flattened_column})      # garante float
+    gm = column_transform_info.transform                      # GMM ajustado
+    transformed = gm.transform(data)                           # transform do sklearn → 2 colunas</code></pre>
+
+        <h4>O que gm.transform(data) retorna</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Linha</th><th>balance.normalized (α bruto)</th><th>balance.component (índice do modo)</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>1.120</td><td>0</td></tr>
+              <tr><td>2</td><td>−0.045</td><td>1</td></tr>
+              <tr><td>3</td><td>−0.231</td><td>0</td></tr>
+              <tr><td>4</td><td>0.481</td><td>1</td></tr>
+              <tr><td>5</td><td>0.231</td><td>0</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="formula-box">
+          <div class="label">Como .normalized é calculado internamente</div>
+Para cada valor c atribuído ao modo k:<br>
+&nbsp;&nbsp;normalized = (c − μₖ) / (4 × ϕₖ)<br><br>
+Linha 1: (12450 − 1935) / (4 × 2345) = 10515 / 9380 = <span class="val">1.121</span><br>
+Linha 2: (35800 − 38483) / (4 × 14912) = −2683 / 59648 = <span class="val">−0.045</span><br>
+Linha 3: (−230 − 1935) / (4 × 2345) = −2165 / 9380 = <span class="val">−0.231</span><br>
+Linha 4: (67200 − 38483) / (4 × 14912) = 28717 / 59648 = <span class="val">0.481</span><br>
+Linha 5: (4100 − 1935) / (4 × 2345) = 2165 / 9380 = <span class="val">0.231</span>
+        </div>
+
+        <h4>Construção da matriz de saída</h4>
+<pre><code># data_transformer.py:129-132
+output = np.zeros((len(transformed), column_transform_info.output_dimensions))  # (5, 3)
+output[:, 0] = transformed[f'{column_name}.normalized'].to_numpy()             # valores de α
+index = transformed[f'{column_name}.component'].to_numpy().astype(int)         # [0,1,0,1,0]
+output[np.arange(index.size), index + 1] = 1.0                                # one-hot do modo</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Passo a passo para a linha 1</div>
+output = [[0, 0, 0],   # inicializado com zeros<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [0, 0, 0],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [0, 0, 0],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [0, 0, 0],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [0, 0, 0]]<br><br>
+Passo 1: output[:, 0] = [1.121, −0.045, −0.231, 0.481, 0.231]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; output = [[1.121, 0, 0], [−0.045, 0, 0], ...]<br><br>
+Passo 2: index = [0, 1, 0, 1, 0]<br>
+Passo 3: index + 1 = [1, 2, 1, 2, 1]<br>
+Passo 4: np.arange(5) = [0, 1, 2, 3, 4]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; output[[0,1,2,3,4], [1,2,1,2,1]] = 1.0<br><br>
+Linha 1: output[0, 0+1] = output[0, 1] = 1.0<br>
+Linha 2: output[1, 1+1] = output[1, 2] = 1.0<br><br>
+<strong>Saída final do balance:</strong><br>
+[[1.121, <span class="val">1</span>, 0],   ← linha 1: α=1.121, modo=0<br>
+ [−0.045, 0, <span class="val">1</span>],  ← linha 2: α=−0.045, modo=1<br>
+ [−0.231, <span class="val">1</span>, 0],   ← linha 3<br>
+ [0.481, 0, <span class="val">1</span>],   ← linha 4<br>
+ [0.231, <span class="val">1</span>, 0]]   ← linha 5
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-transform-disc">
+      <div class="step-header" onclick="tog('s-transform-disc')">
+        <span class="num">3b</span>
+        <span><code>_transform_discrete(account_type)</code> — OneHot</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># data_transformer.py:136-138
+def _transform_discrete(self, column_transform_info, data):
+    ohe = column_transform_info.transform      # OneHotEncoder ajustado
+    return ohe.transform(data).to_numpy()       # pandas → numpy</code></pre>
+
+        <div class="formula-box">
+          <div class="label">OneHotEncoder.transform() para account_type</div>
+Encoder foi ajustado em [Checking, Savings]<br>
+Checking → [1, 0]<br>
+Savings → [0, 1]<br><br>
+Entrada: ["Checking", "Savings", "Checking", "Savings", "Checking"]<br>
+Saída:<br>
+[[1, 0],  ← Checking<br>
+ [0, 1],  ← Savings<br>
+ [1, 0],  ← Checking<br>
+ [0, 1],  ← Savings<br>
+ [1, 0]]  ← Checking
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-transform-inc">
+      <div class="step-header" onclick="tog('s-transform-inc')">
+        <span class="num">3c</span>
+        <span><code>_transform_continuous(monthly_income)</code></span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+        <div class="formula-box">
+          <div class="label">GMM encontra 1 modo (unimodal)</div>
+μ = 6,700 · ϕ = 3,200 · peso = 1.0<br><br>
+α = (c − 6700) / (4 × 3200) = (c − 6700) / 12,800<br><br>
+Linha 1: (5200 − 6700) / 12800 = <span class="val">−0.117</span><br>
+Linha 2: (8100 − 6700) / 12800 = <span class="val">0.109</span><br>
+Linha 3: (3400 − 6700) / 12800 = <span class="val">−0.258</span><br>
+Linha 4: (12000 − 6700) / 12800 = <span class="val">0.414</span><br>
+Linha 5: (4800 − 6700) / 12800 = <span class="val">−0.148</span><br><br>
+Saída: [α, 1] já que há apenas 1 modo → β é sempre [1]<br>
+[[-0.117, 1], [0.109, 1], [−0.258, 1], [0.414, 1], [−0.148, 1]]
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-concat">
+      <div class="step-header" onclick="tog('s-concat')">
+        <span class="num">3d</span>
+        <span>Concatenação completa — matriz codificada final</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># data_transformer.py:174-189 — transform()
+column_data_list = []  # [balance(5,3), account_type(5,2), status(5,3), income(5,2)]
+# ... transformação síncrona ou paralela ...
+return np.concatenate(column_data_list, axis=1).astype(float)  # → (5, 10)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Distribuição das colunas no vetor de 10 dimensões</div>
+Cols 0-2: balance → [α, β_modo0, β_modo1]<br>
+Cols 3-4: account_type → [Checking, Savings]<br>
+Cols 5-7: status → [Active, Overdrawn, Frozen]<br>
+Cols 8-9: monthly_income → [α, β_modo0]
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>bal.α</th><th>bal.β₀</th><th>bal.β₁</th><th>Chk</th><th>Sav</th><th>Act</th><th>Over</th><th>Frz</th><th>inc.α</th><th>inc.β₀</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>1.121</td><td class="hl">1</td><td>0</td><td class="hl">1</td><td>0</td><td class="hl">1</td><td>0</td><td>0</td><td>−0.117</td><td>1</td></tr>
+              <tr><td>2</td><td>−0.045</td><td>0</td><td class="hl">1</td><td>0</td><td class="hl">1</td><td class="hl">1</td><td>0</td><td>0</td><td>0.109</td><td>1</td></tr>
+              <tr><td>3</td><td>−0.231</td><td class="hl">1</td><td>0</td><td class="hl">1</td><td>0</td><td>0</td><td class="hl">1</td><td>0</td><td>−0.258</td><td>1</td></tr>
+              <tr><td>4</td><td>0.481</td><td>0</td><td class="hl">1</td><td>0</td><td class="hl">1</td><td class="hl">1</td><td>0</td><td>0</td><td>0.414</td><td>1</td></tr>
+              <tr><td>5</td><td>0.231</td><td class="hl">1</td><td>0</td><td class="hl">1</td><td>0</td><td>0</td><td>0</td><td class="hl">1</td><td>−0.148</td><td>1</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- STEP 4 -->
+  <section>
+    <h2>Passo 4 — Treinamento por Amostragem</h2>
+
+    <div class="step open" id="s-sampler-init">
+      <div class="step-header" onclick="tog('s-sampler-init')">
+        <span class="num">4a</span>
+        <span>DataSampler.__init__() — como frequências de categoria são armazenadas</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+        <p><span class="code-ref">data_sampler.py:9–74</span> — executa uma vez durante o fit, constrói tabelas de lookup:</p>
+
+<pre><code># data_sampler.py:9-40 — __init__
+self._data_length = len(data)          # 5
+
+# Encontra quais colunas são discretas
+def is_discrete_column(column_info):
+    return len(column_info) == 1 and column_info[0].activation_fn == 'softmax'
+
+n_discrete_columns = sum([1 for col in output_info if is_discrete_column(col)])
+# account_type (softmax) = discreta ✓
+# status (softmax) = discreta ✓
+# → n_discrete_columns = 2
+
+# Constrói _rid_by_cat_cols: índices de linha por categoria por coluna discreta
+# data_sampler.py:28-39
+for column_info in output_info:
+    if is_discrete_column(column_info):
+        span_info = column_info[0]
+        ed = st + span_info.dim
+        rid_by_cat = []
+        for j in range(span_info.dim):
+            rid_by_cat.append(np.nonzero(data[:, st + j])[0])
+        self._rid_by_cat_cols.append(rid_by_cat)
+        st = ed</code></pre>
+
+        <div class="formula-box">
+          <div class="label">_rid_by_cat_cols — lookup de índices de linha</div>
+<strong>account_type (cols 3-4):</strong><br>
+&nbsp;&nbsp;Checking (col 3): np.nonzero([1,0,1,0,1]) = <span class="val">[0, 2, 4]</span><br>
+&nbsp;&nbsp;Savings (col 4): np.nonzero([0,1,0,1,0]) = <span class="val">[1, 3]</span><br><br>
+<strong>status (cols 5-7):</strong><br>
+&nbsp;&nbsp;Active (col 5): np.nonzero([1,1,0,1,0]) = <span class="val">[0, 1, 3]</span><br>
+&nbsp;&nbsp;Overdrawn (col 6): np.nonzero([0,0,1,0,0]) = <span class="val">[2]</span><br>
+&nbsp;&nbsp;Frozen (col 7): np.nonzero([0,0,0,0,1]) = <span class="val">[4]</span>
+        </div>
+
+        <div class="formula-box">
+          <div class="label">Cálculo da probabilidade de categoria <span class="code-ref">data_sampler.py:56-74</span></div>
+<strong>status:</strong> Active=3 linhas, Overdrawn=1, Frozen=1<br>
+Frequência bruta: [3, 1, 1]<br>
+Log-frequência: [ln(3+1), ln(1+1), ln(1+1)] = [ln(4), ln(2), ln(2)] = [1.386, 0.693, 0.693]<br>
+PMF: [1.386/2.773, 0.693/2.773, 0.693/2.773] = <span class="val">[0.500, 0.250, 0.250]</span><br><br>
+<strong>account_type:</strong> Checking=3, Savings=2<br>
+Frequência bruta: [3, 2]<br>
+Log-frequência: [ln(4), ln(3)] = [1.386, 1.099]<br>
+PMF: [1.386/2.485, 1.099/2.485] = <span class="val">[0.558, 0.442]</span><br><br>
+Armazenado em: self._discrete_column_category_prob = [[0.558, 0.442], [0.500, 0.250, 0.250]]
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-sample-cond">
+      <div class="step-header" onclick="tog('s-sample-cond')">
+        <span class="num">4b</span>
+        <span>sample_condvec() — um passo rastreado</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># data_sampler.py:81-106
+def sample_condvec(self, batch):      # batch = 500
+    # Passo 1: seleciona coluna discreta (probabilidade igual)
+    discrete_column_id = np.random.choice(
+        np.arange(self._n_discrete_columns), batch  # [0,1] → seleciona aleatoriamente
+    )
+    # Suponha batch=1, discrete_column_id = 1 (coluna status)
+
+    # Passo 2: constrói vetor de condição
+    cond = np.zeros((batch, self._n_categories))  # (1, 5) para 5 categorias totais
+    mask = np.zeros((batch, self._n_discrete_columns))  # (1, 2)
+    mask[np.arange(batch), discrete_column_id] = 1  # mask = [[0, 1]] ← coluna 1 selecionada
+
+    # Passo 3: amostra categoria da PMF
+    category_id_in_col = self._random_choice_prob_index(discrete_column_id)
+    # PMF do status = [0.500, 0.250, 0.250]
+    # sorteio aleatório → suponha Active (índice 0)
+    # category_id_in_col = 0
+
+    # Passo 4: calcula índice global da categoria
+    category_id = self._discrete_column_cond_st[discrete_column_id] + category_id_in_col
+    # _discrete_column_cond_st = [0, 2] (account_type começa em 0, status começa em 2)
+    # category_id = 2 + 0 = 2  ← "Active" no vetor completo de 5 categorias
+
+    # Passo 5: define one-hot
+    cond[np.arange(batch), category_id] = 1
+    # cond = [[0, 0, 1, 0, 0]]
+    #        [Chk Sav Act Over Frz]
+    #               ↑ Active</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Vetor condicional completo</div>
+Categorias (5 no total): [Checking, Savings, Active, Overdrawn, Frozen]<br>
+&nbsp;&nbsp;account_type começa no offset 0<br>
+&nbsp;&nbsp;status começa no offset 2<br><br>
+Exemplo de vetor cond para status=Active:<br>
+&nbsp;&nbsp;cond = [0, 0, <span class="val">1</span>, 0, 0]<br><br>
+Isso é concatenado ao z no loop de treinamento:<br>
+&nbsp;&nbsp;fakez = torch.cat([z(128), cond(5)], dim=1) → forma (500, 133)<br>
+&nbsp;&nbsp;<span style="color:var(--muted);">Espera — o artigo diz 8 categorias mas nossos dados têm 5. O sampler se adapta aos dados reais.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-sample-data">
+      <div class="step-header" onclick="tog('s-sample-data')">
+        <span class="num">4c</span>
+        <span>sample_data() — correspondendo linhas a condições</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># data_sampler.py:122-141
+def sample_data(self, data, n, col, opt):
+    # col = [1, 1, 0, ...] (discrete_column_id por amostra)
+    # opt = [0, 0, 2, ...] (category_id_in_col por amostra)
+    idx = []
+    for c, o in zip(col, opt):
+        idx.append(np.random.choice(self._rid_by_cat_cols[c][o]))
+    return data[idx]
+
+# Exemplo: para amostra onde col=1 (status), opt=0 (Active)
+# _rid_by_cat_cols[1][0] = [0, 1, 3]  ← linhas com status=Active
+# np.random.choice([0, 1, 3]) → digamos 0
+# retorna data[0] = a linha codificada 1</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Por que isso importa</div>
+O gerador é treinado em linhas REAIS que correspondem à condição.<br>
+Se a condição diz "status=Active", o discriminador vê linhas 0, 1 ou 3 (linhas reais Active).<br>
+Isso força o gerador a aprender: "quando a cond diz Active, produza dados parecidos com aquelas linhas."
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- STEP 5 -->
+  <section>
+    <h2>Passo 5 — Forward Pass do Gerador</h2>
+
+    <div class="step open" id="s-gen-arch">
+      <div class="step-header" onclick="tog('s-gen-arch')">
+        <span class="num">5a</span>
+        <span>Generator.__init__() — arquitetura com formas reais</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># ctgan.py:85-93
+class Generator(Module):
+    def __init__(self, embedding_dim, generator_dim, data_dim):
+        # embedding_dim = 128 + 5 = 133 (ruído + condição)
+        # generator_dim = (256, 256)
+        # data_dim = 10 (largura da matriz codificada)
+        dim = embedding_dim    # 133
+        seq = []
+        for item in list(generator_dim):   # [256, 256]
+            seq += [Residual(dim, item)]   # Residual(133, 256), depois Residual(389, 256)
+            dim += item                    # 133+256=389, depois 389+256=645
+        seq.append(Linear(dim, data_dim))  # Linear(645, 10)
+        self.seq = Sequential(*seq)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Fluxo de formas pelo Gerador</div>
+Entrada: z ⊕ cond = (batch, <span class="val">133</span>)<br><br>
+Residual₁(133, 256):<br>
+&nbsp;&nbsp;FC: (batch, 133) → (batch, 256)<br>
+&nbsp;&nbsp;BN: (batch, 256)<br>
+&nbsp;&nbsp;ReLU: (batch, 256)<br>
+&nbsp;&nbsp;cat([out, input]): (batch, 256+133) = (batch, <span class="val">389</span>)<br><br>
+Residual₂(389, 256):<br>
+&nbsp;&nbsp;FC: (batch, 389) → (batch, 256)<br>
+&nbsp;&nbsp;BN: (batch, 256)<br>
+&nbsp;&nbsp;ReLU: (batch, 256)<br>
+&nbsp;&nbsp;cat([out, input]): (batch, 256+389) = (batch, <span class="val">645</span>)<br><br>
+Linear(645, 10): (batch, <span class="val">10</span>) ← saída bruta
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-residual">
+      <div class="step-header" onclick="tog('s-residual')">
+        <span class="num">5b</span>
+        <span>Bloco Residual — operações reais</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># ctgan.py:65-79
+class Residual(Module):
+    def __init__(self, i, o):
+        self.fc = Linear(i, o)       # ex: Linear(133, 256)
+        self.bn = BatchNorm1d(o)     # BatchNorm1d(256)
+        self.relu = ReLU()
+
+    def forward(self, input_):
+        out = self.fc(input_)        # (batch, 133) → (batch, 256)
+        out = self.bn(out)           # normaliza pelo batch
+        out = self.relu(out)         # max(0, x)
+        return torch.cat([out, input_], dim=1)  # (batch, 256+133=389)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Exemplo numérico — Linha 1 do batch</div>
+input_ = [−0.21, 0.85, ..., 0.33]  (133 valores: 128 de ruído + 5 de condição)<br><br>
+FC₁₃₃→₂₅₆:<br>
+&nbsp;&nbsp;out[j] = Σᵢ (input_[i] × W[j,i] + b[j])&nbsp;&nbsp;para j = 0..255<br>
+&nbsp;&nbsp;W forma: (256, 133), b forma: (256,)<br>
+&nbsp;&nbsp;Exemplo: out[0] = input_[0]×W[0,0] + input_[1]×W[0,1] + ... + input_[132]×W[0,132] + b[0]<br><br>
+BN₂₅₆:<br>
+&nbsp;&nbsp;out[j] = γⱼ × (out[j] − μ_batch) / √(σ²_batch + ε) + βⱼ<br>
+&nbsp;&nbsp;onde γ, β são aprendíveis, μ, σ são estatísticas do batch<br><br>
+ReLU:<br>
+&nbsp;&nbsp;out[j] = max(0, out[j])<br><br>
+cat:<br>
+&nbsp;&nbsp;result = [out[0], ..., out[255], input_[0], ..., input_[132]] ← 389 valores
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-activations">
+      <div class="step-header" onclick="tog('s-activations')">
+        <span class="num">5c</span>
+        <span><code>_apply_activate()</code> — tanh e gumbel_softmax</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># ctgan.py:221-239
+def _apply_activate(self, data):
+    data_t = []
+    st = 0
+    for column_info in self._transformer.output_info_list:
+        for span_info in column_info:
+            if span_info.activation_fn == 'tanh':
+                ed = st + span_info.dim
+                data_t.append(torch.tanh(data[:, st:ed]))   # escalares α
+                st = ed
+            elif span_info.activation_fn == 'softmax':
+                ed = st + span_info.dim
+                transformed = self._gumbel_softmax(data[:, st:ed], tau=0.2)
+                data_t.append(transformed)                   # categorias β
+                st = ed
+    return torch.cat(data_t, dim=1)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">O que cada ativação faz à saída bruta de 10 dimensões</div>
+Mapeamento das colunas (output_info_list):<br>
+&nbsp;&nbsp;0: SpanInfo(1, 'tanh') → α do balance<br>
+&nbsp;&nbsp;1: SpanInfo(2, 'softmax') → modos do balance<br>
+&nbsp;&nbsp;2: SpanInfo(2, 'softmax') → account_type<br>
+&nbsp;&nbsp;3: SpanInfo(3, 'softmax') → status<br>
+&nbsp;&nbsp;4: SpanInfo(2, 'softmax') → modo do income<br><br>
+Saída bruta linha 1: [0.89, 2.1, −1.5, 1.8, −0.3, 2.5, −0.8, −1.9, 0.15, 1.2]<br><br>
+<strong>Após tanh (cols 0, 8):</strong><br>
+&nbsp;&nbsp;tanh(0.89) = <span class="val">0.711</span><br>
+&nbsp;&nbsp;tanh(0.15) = <span class="val">0.149</span><br><br>
+<strong>Após gumbel_softmax (cols 1-2, τ=0.2):</strong><br>
+&nbsp;&nbsp;logits = [2.1, −1.5]<br>
+&nbsp;&nbsp;gumbel = [2.1 + g₁, −1.5 + g₂] onde g₁, g₂ ~ Gumbel(0,1)<br>
+&nbsp;&nbsp;softmax com τ=0.2: exp((2.1+g₁)/0.2) / (exp((2.1+g₁)/0.2) + exp((−1.5+g₂)/0.2))<br>
+&nbsp;&nbsp;τ=0.2 torna muito nítido → <span class="val">[0.97, 0.03]</span> ≈ one-hot<br><br>
+<strong>Após gumbel_softmax (cols 3-5, status, τ=0.2):</strong><br>
+&nbsp;&nbsp;logits = [2.5, −0.8, −1.9]<br>
+&nbsp;&nbsp;→ <span class="val">[0.94, 0.04, 0.02]</span><br><br>
+<strong>Após gumbel_softmax (cols 8-9, income, τ=0.2):</strong><br>
+&nbsp;&nbsp;logits = [0.15, 1.2]<br>
+&nbsp;&nbsp;→ <span class="val">[0.25, 0.75]</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- STEP 6 -->
+  <section>
+    <h2>Passo 6 — Discriminador + Perda</h2>
+
+    <div class="step open" id="s-disc">
+      <div class="step-header" onclick="tog('s-disc')">
+        <span class="num">6a</span>
+        <span>Discriminador com PacGAN</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># ctgan.py:22-33 — Discriminator
+class Discriminator(Module):
+    def __init__(self, input_dim, discriminator_dim, pac=10):
+        dim = input_dim * pac    # (10+5) × 10 = 150
+        self.pac = pac           # 10
+        seq = []
+        for item in list(discriminator_dim):  # [256, 256]
+            seq += [Linear(dim, item), LeakyReLU(0.2), Dropout(0.5)]
+            dim = item
+        seq += [Linear(dim, 1)]  # 256 → 1
+        self.seq = Sequential(*seq)
+
+    def forward(self, input_):
+        assert input_.size()[0] % self.pac == 0
+        return self.seq(input_.view(-1, self.pacdim))  # reshape para PacGAN</code></pre>
+
+        <div class="formula-box">
+          <div class="label">PacGAN — como 10 linhas são empacotadas</div>
+Batch real: 10 linhas de [data(10) + cond(5)] = 10 × 15 = 150 valores<br>
+PacGAN empacota: input_.view(-1, 150) → (batch/10, 150)<br><br>
+Isso significa que o discriminador vê 10 linhas REAIS ou 10 FALSAS ao mesmo tempo,<br>
+ajudando-o a distinguir colapso de modos (todas as linhas falsas parecem iguais).
+        </div>
+
+        <div class="formula-box">
+          <div class="label">Penalidade de gradiente WGAN-GP <span class="code-ref">ctgan.py:35-57</span></div>
+alpha = rand(batch//10, 1, 1) → repete para (batch, 1, 15) → view (batch, 150)<br>
+interpolates = alpha × real + (1−alpha) × fake &nbsp;&nbsp;← amostras interpoladas<br>
+disc_interpolates = self(interpolates)<br>
+gradients = autograd.grad(disc_interpolates, interpolates)<br>
+gradient_penalty = (‖gradients‖₂ − 1)² × λ &nbsp;&nbsp;onde λ=10
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-loss-calc">
+      <div class="step-header" onclick="tog('s-loss-calc')">
+        <span class="num">6b</span>
+        <span>Cálculo da perda — rastreamento numérico</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># ctgan.py:424-435 — passo do discriminador
+y_fake = discriminator(fake_cat)    # forma (batch, 1)
+y_real = discriminator(real_cat)    # forma (batch, 1)
+
+pen = discriminator.calc_gradient_penalty(real_cat, fake_cat, ...)
+
+loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
+# Exemplo: y_real mean = 0.85, y_fake mean = -0.12
+# loss_d = -(0.85 - (-0.12)) = -(0.97) = -0.97
+# Discriminador quer MAXIMIZAR (real - fake), então a perda é negativa
+
+optimizerD.zero_grad()
+pen.backward(retain_graph=True)   # adiciona penalidade de gradiente
+loss_d.backward()                 # backprop
+optimizerD.step()
+
+# ctgan.py:448-461 — passo do gerador
+y_fake = discriminator(torch.cat([fakeact, c1], dim=1))
+cross_entropy = self._cond_loss(fake, c1, m1)
+# Exemplo: CE = 0.16 (gerador previu corretamente "Active")
+loss_g = -torch.mean(y_fake) + cross_entropy
+# loss_g = -(-0.12) + 0.16 = 0.12 + 0.16 = 0.28</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Fórmula completa da perda (Artigo § 4.3)</div>
+Perda D: L_D = E[C(x_real)] − E[C(x_fake)] + λ · GP<br>
+&nbsp;&nbsp;onde C = criticador, GP = penalidade de gradiente<br><br>
+Perda G: L_G = −E[C(x_fake)] + CrossEntropy(G(z,cond)_condição, condição)<br>
+&nbsp;&nbsp;primeiro termo: enganar o discriminador<br>
+&nbsp;&nbsp;segundo termo: respeitar o vetor condicional
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- STEP 7 -->
+  <section>
+    <h2>Passo 7 — Transformação Inversa (codificado → real)</h2>
+
+    <div class="step open" id="s-inv-disc">
+      <div class="step-header" onclick="tog('s-inv-disc')">
+        <span class="num">7a</span>
+        <span>Discreto: argmax → OneHotEncoder.reverse_transform()</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># data_transformer.py:201-204
+def _inverse_transform_discrete(self, column_transform_info, column_data):
+    ohe = column_transform_info.transform
+    data = pd.DataFrame(column_data, columns=list(ohe.get_output_sdtypes()))
+    return ohe.reverse_transform(data)[column_transform_info.column_name]</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Exemplo: linha 3, account_type</div>
+Saída do gerador: [0.89, 0.11] (gumbel_softmax, near one-hot)<br>
+argmax([0.89, 0.11]) = <span class="val">0</span><br>
+Categorias do OneHotEncoder: [Checking, Savings]<br>
+índice 0 → <span class="val">"Checking"</span><br><br>
+<strong>Coluna status:</strong><br>
+Saída do gerador: [0.10, 0.84, 0.06]<br>
+argmax([0.10, 0.84, 0.06]) = <span class="val">1</span><br>
+Categorias do OneHotEncoder: [Active, Overdrawn, Frozen]<br>
+índice 1 → <span class="val">"Overdrawn"</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-inv-cont">
+      <div class="step-header" onclick="tog('s-inv-cont')">
+        <span class="num">7b</span>
+        <span>Contínuo: α → atanh → GMM reverse_transform()</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+<pre><code># data_transformer.py:191-199
+def _inverse_transform_continuous(self, column_transform_info, column_data, sigmas, st):
+    gm = column_transform_info.transform
+    # column_data[:, :2] = [α, mode_onehot_0, mode_onehot_1]
+    data = pd.DataFrame(
+        column_data[:, :2],
+        columns=['balance.normalized', 'balance.component']
+    ).astype(float)
+    data[data.columns[1]] = np.argmax(column_data[:, 1:], axis=1)  # one-hot → índice
+    # linha 1: argmax([0.97, 0.03]) = 0 → modo 0
+    # linha 2: argmax([0.05, 0.95]) = 1 → modo 1
+
+    return gm.reverse_transform(data)  # sklearn GMM reverse</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Como gm.reverse_transform() funciona internamente</div>
+Entrada: (α = 0.711, modo = 0)<br><br>
+Passo 1: Desnormalizar α → valor bruto:<br>
+&nbsp;&nbsp;raw = α × 4ϕ + μ = 0.711 × 4 × 2345 + 1935<br>
+&nbsp;&nbsp;= 0.711 × 9380 + 1935<br>
+&nbsp;&nbsp;= 6669.18 + 1935 = <span class="val">8,604</span><br><br>
+Passo 2: (Opcional) Adicionar ruído: raw + N(0, σ) × sigmas[st]<br>
+&nbsp;&nbsp;Se sigmas=None (padrão durante geração), pula este passo<br><br>
+Passo 3: Retorna como DataFrame com nome da coluna restaurado<br><br>
+<strong>Para cada linha do balance:</strong><br>
+Linha 1: α=0.711, modo=0 → 0.711×9380 + 1935 = <span class="val">8,604</span><br>
+Linha 2: α=−0.045, modo=1 → −0.045×59648 + 38483 = <span class="val">35,799</span><br>
+Linha 3: α=−0.231, modo=0 → −0.231×9380 + 1935 = <span class="val">−227</span><br>
+Linha 4: α=0.481, modo=1 → 0.481×59648 + 38483 = <span class="val">67,174</span><br>
+Linha 5: α=0.231, modo=0 → 0.231×9380 + 1935 = <span class="val">4,102</span>
+        </div>
+
+        <div class="formula-box">
+          <div class="label">Fluxo completo do inverse_transform() <span class="code-ref">data_transformer.py:206-238</span></div>
+Para cada coluna:<br>
+&nbsp;&nbsp;se contínua: _inverse_transform_continuous(data[:, st:st+dim])<br>
+&nbsp;&nbsp;se discreta: _inverse_transform_discrete(data[:, st:st+dim])<br><br>
+st começa em 0, incrementa pelas dimensões de saída da coluna:<br>
+&nbsp;&nbsp;balance: st=0, dim=3 → data[:, 0:3]<br>
+&nbsp;&nbsp;account_type: st=3, dim=2 → data[:, 3:5]<br>
+&nbsp;&nbsp;status: st=5, dim=3 → data[:, 5:8]<br>
+&nbsp;&nbsp;income: st=8, dim=2 → data[:, 8:10]<br><br>
+Finalmente: np.column_stack → pd.DataFrame com nomes de coluna e dtypes originais
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- RESULTADO FINAL -->
+  <section>
+    <h2>Resultado Final</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>account_type</th><th>balance</th><th>status</th><th>monthly_income</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Checking</td><td>8,604</td><td>Active</td><td>5,115</td><td class="green">sintético</td></tr>
+          <tr><td>2</td><td>Savings</td><td>35,799</td><td>Active</td><td>8,398</td><td class="green">sintético</td></tr>
+          <tr><td>3</td><td>Checking</td><td>−227</td><td>Overdrawn</td><td>3,046</td><td class="green">sintético</td></tr>
+          <tr><td>4</td><td>Savings</td><td>67,174</td><td>Active</td><td>12,224</td><td class="green">sintético</td></tr>
+          <tr><td>5</td><td>Checking</td><td>4,102</td><td>Overdrawn</td><td>4,680</td><td class="green">sintético</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem;">
+      <div>
+        <h4><span class="badge real">REAL</span></h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>acc</th><th>balance</th><th>status</th><th>income</th></tr></thead>
+            <tbody>
+              <tr><td>Checking</td><td>12,450</td><td>Active</td><td>5,200</td></tr>
+              <tr><td>Savings</td><td>35,800</td><td>Active</td><td>8,100</td></tr>
+              <tr><td>Checking</td><td>−230</td><td>Overdrawn</td><td>3,400</td></tr>
+              <tr><td>Savings</td><td>67,200</td><td>Active</td><td>12,000</td></tr>
+              <tr><td>Checking</td><td>4,100</td><td>Frozen</td><td>4,800</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h4><span class="badge fake">SINTÉTICO</span></h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>acc</th><th>balance</th><th>status</th><th>income</th></tr></thead>
+            <tbody>
+              <tr><td>Checking</td><td>8,604</td><td>Active</td><td>5,115</td></tr>
+              <tr><td>Savings</td><td>35,799</td><td>Active</td><td>8,398</td></tr>
+              <tr><td>Checking</td><td>−227</td><td>Overdrawn</td><td>3,046</td></tr>
+              <tr><td>Savings</td><td>67,174</td><td>Active</td><td>12,224</td></tr>
+              <tr><td>Checking</td><td>4,102</td><td>Overdrawn</td><td>4,680</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLUXO DE DIMENSÕES -->
+  <section>
+    <h2>Fluxo Completo de Dimensões</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Estágio</th><th>Formato</th><th>Operação</th><th>Código</th></tr></thead>
+        <tbody>
+          <tr><td>Dados brutos</td><td>(5, 4)</td><td>—</td><td>—</td></tr>
+          <tr><td>Ajuste GMM</td><td>—</td><td>BayesianGMM por coluna</td><td><span class="code-ref">transformer.fit</span></td></tr>
+          <tr><td>transform(balance)</td><td>(5, 3)</td><td>α=(c−μ)/(4ϕ), β=onehot(modo)</td><td><span class="code-ref">_transform_continuous</span></td></tr>
+          <tr><td>transform(account_type)</td><td>(5, 2)</td><td>OneHotEncoder</td><td><span class="code-ref">_transform_discrete</span></td></tr>
+          <tr><td>transform(status)</td><td>(5, 3)</td><td>OneHotEncoder</td><td><span class="code-ref">_transform_discrete</span></td></tr>
+          <tr><td>transform(income)</td><td>(5, 2)</td><td>α=(c−μ)/(4ϕ), β=[1]</td><td><span class="code-ref">_transform_continuous</span></td></tr>
+          <tr><td>concatenar</td><td>(5, 10)</td><td>np.concatenate</td><td><span class="code-ref">transform()</span></td></tr>
+          <tr><td>sample_condvec</td><td>(batch, 5)</td><td>col aleatória + PMF log-freq</td><td><span class="code-ref">data_sampler</span></td></tr>
+          <tr><td>z ⊕ cond</td><td>(batch, 133)</td><td>torch.cat([z, cond])</td><td><span class="code-ref">ctgan.py:403</span></td></tr>
+          <tr><td>Residual₁</td><td>(batch, 389)</td><td>cat(ReLU(BN(FC₁₃₃→₂₅₆)), input)</td><td><span class="code-ref">ctgan.py:65-79</span></td></tr>
+          <tr><td>Residual₂</td><td>(batch, 645)</td><td>cat(ReLU(BN(FC₃₈₉→₂₅₆)), input)</td><td><span class="code-ref">ctgan.py:65-79</span></td></tr>
+          <tr><td>Saída do Gerador</td><td>(batch, 10)</td><td>FC₆₄₅→₁₀</td><td><span class="code-ref">ctgan.py:92</span></td></tr>
+          <tr><td>_apply_activate</td><td>(batch, 10)</td><td>tanh(α) + gumbel(β, τ=0.2)</td><td><span class="code-ref">ctgan.py:221-239</span></td></tr>
+          <tr><td>Entrada do Discriminador</td><td>(batch/10, 150)</td><td>empacota 10 linhas de (10+5)</td><td><span class="code-ref">ctgan.py:24</span></td></tr>
+          <tr><td>inverse_transform</td><td>(5, 4)</td><td>argmax + atanh×4ϕ+μ + OHE reverse</td><td><span class="code-ref">transformer.inverse_transform</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="callout">
+    <p>
+      <strong>Insight Principal:</strong> Cada valor na saída sintética decorre de: (1) uma atribuição de modo GMM via argmax, (2) um escalar α normalizado por tanh que codifica o valor dentro do modo, (3) um gerador que aprendeu a produzir α a partir de ruído + condição, e (4) uma transformação inversa: <code>c = atanh(α) × 4ϕ<sub>k</sub> + μ<sub>k</sub></code>.
+    </p>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; margin-top:3rem; padding-top:1.5rem; border-top:2px solid var(--border);">
+    <a href="ctgan-documentation.html" style="color:var(--accent); text-decoration:none; font-weight:600; font-size:.88rem;">← Documentação</a>
+    <a href="ctgan-rdt.html" style="color:var(--accent); text-decoration:none; font-weight:600; font-size:.88rem;">Aprofundamento RDT →</a>
+    <a href="https://arxiv.org/abs/1907.00503" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:none; font-weight:600; font-size:.88rem;">Ler o artigo ↗</a>
+  </div>
+
+  <footer>
+    <p>Página de simulação profunda para <a href="https://github.com/sdv-dev/CTGAN">CTGAN</a></p>
+  </footer>
+</div>
+
+<script>
+function tog(id) { document.getElementById(id).classList.toggle('open'); }
+</script>
+</body>
+</html>

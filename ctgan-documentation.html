@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTGAN — Documentação Interativa</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#fff; --fg:#1a1a2e; --muted:#64748b; --accent:#2563eb; --accent-bg:#eff6ff;
+      --border:#e2e8f0; --code-bg:#f8fafc; --paper-bg:#fefce8; --paper-bdr:#fbbf24;
+      --tag-bg:#f1f5f9; --radius:8px; --max-w:820px;
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono','Fira Code','Consolas',monospace;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--font-sans); background:var(--bg); color:var(--fg); line-height:1.75; font-size:16px; }
+    .wrapper { max-width:var(--max-w); margin:0 auto; padding:3rem 1.5rem 6rem; }
+    header { margin-bottom:3rem; padding-top:.5rem; }
+    header h1 { font-size:2.5rem; font-weight:800; letter-spacing:-.03em; margin-bottom:.5rem; }
+    header .subtitle { color:var(--muted); font-size:1.05rem; margin-bottom:1.5rem; }
+    .tag { display:inline-block; padding:.2em .7em; font-size:.8rem; font-weight:600; border-radius:999px; background:var(--tag-bg); color:var(--muted); }
+    .tag.accent { background:var(--accent-bg); color:var(--accent); }
+    nav.toc { position:fixed; top:3rem; right:max(1rem,calc((100vw - var(--max-w))/2 - 240px)); width:220px; font-size:.82rem; display:none; }
+    @media(min-width:1200px){ nav.toc{display:block;} }
+    nav.toc a { display:block; padding:.25em 0; color:var(--muted); text-decoration:none; border-left:2px solid transparent; padding-left:.75rem; transition:all .15s; }
+    nav.toc a:hover, nav.toc a.active { color:var(--accent); border-left-color:var(--accent); }
+    section { margin-bottom:3.5rem; }
+    h2 { font-size:1.6rem; font-weight:700; margin-bottom:1rem; padding-bottom:.4rem; border-bottom:2px solid var(--border); letter-spacing:-.02em; }
+    h3 { font-size:1.15rem; font-weight:600; margin:1.8rem 0 .6rem; color:var(--fg); }
+    p { margin-bottom:1rem; }
+    .paper-excerpt { background:var(--paper-bg); border-left:4px solid var(--paper-bdr); padding:1rem 1.25rem; border-radius:0 var(--radius) var(--radius) 0; margin:1.25rem 0; font-size:.95rem; line-height:1.65; }
+    .paper-excerpt cite { display:block; margin-top:.5rem; font-size:.8rem; color:var(--muted); font-style:normal; }
+    .paper-excerpt .label { display:inline-block; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92400e; margin-bottom:.4rem; }
+    .code-block { position:relative; margin:1.25rem 0; }
+    .code-block header { display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; border:1px solid var(--border); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; padding:.4rem 1rem; font-size:.78rem; font-weight:600; color:var(--muted); margin:0; }
+    .code-block header .file { font-family:var(--font-mono); font-weight:700; }
+    pre { background:var(--code-bg); border:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); padding:1rem 1.25rem; overflow-x:auto; font-size:.82rem; line-height:1.6; font-family:var(--font-mono); tab-size:4; }
+    code { background:var(--tag-bg); padding:.15em .4em; border-radius:4px; font-size:.88em; font-family:var(--font-mono); }
+    .table-wrap { overflow-x:auto; margin:1.25rem 0; border-radius:var(--radius); border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:.88rem; }
+    th,td { padding:.6rem 1rem; text-align:left; border-bottom:1px solid var(--border); }
+    th { background:var(--tag-bg); font-weight:700; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--accent-bg); }
+    td.highlight { font-weight:700; color:var(--accent); }
+    details { margin:1rem 0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    summary { padding:.75rem 1rem; background:var(--tag-bg); cursor:pointer; font-weight:600; font-size:.9rem; list-style:none; display:flex; align-items:center; gap:.5rem; user-select:none; }
+    summary::before { content:'▸'; transition:transform .15s; }
+    details[open] summary::before { transform:rotate(90deg); }
+    summary::-webkit-details-marker { display:none; }
+    details .detail-body { padding:1rem; }
+    .challenges { display:grid; grid-template-columns:1fr; gap:1rem; margin:1.5rem 0; }
+    .challenge-card { border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; transition:box-shadow .15s; }
+    .challenge-card:hover { box-shadow:0 2px 12px rgba(0,0,0,.06); }
+    .challenge-card .num { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; font-size:.78rem; font-weight:700; margin-bottom:.5rem; }
+    .challenge-card h4 { font-size:.95rem; font-weight:700; margin-bottom:.3rem; }
+    .challenge-card p { font-size:.88rem; color:var(--muted); margin:0; }
+    .nav-arrows { display:flex; justify-content:space-between; margin-top:3rem; padding-top:1.5rem; border-top:2px solid var(--border); }
+    .nav-arrows a { color:var(--accent); text-decoration:none; font-weight:600; font-size:.9rem; }
+    .nav-arrows a:hover { text-decoration:underline; }
+    footer { margin-top:4rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--muted); font-size:.82rem; text-align:center; }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<nav class="toc" id="toc">
+  <a href="#abstract">Resumo</a>
+  <a href="#challenges">5 Desafios</a>
+  <a href="#normalization">Normalização por Modos</a>
+  <a href="#conditional">Gerador Condicional</a>
+  <a href="#network">Estrutura da Rede</a>
+  <a href="#tvae">Modelo TVAE</a>
+  <a href="#benchmarks">Resultados</a>
+  <a href="#ablation">Estudo de Ablação</a>
+</nav>
+
+<div class="wrapper">
+
+  <header id="top">
+    <h1>CTGAN</h1>
+    <p class="subtitle">Modelagem de Dados Tabulares com GAN Condicional</p>
+    <p style="color:var(--muted); font-size:.92rem;">
+      Lei Xu · Maria Skoularidou · Alfredo Cuesta-Infante · Kalyan Veeramachaneni<br>
+      <em>arXiv:1907.00503v2 — Out 2019</em>
+    </p>
+    <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem;">
+      <span class="tag accent">Modelo Generativo</span>
+      <span class="tag accent">Dados Tabulares</span>
+      <span class="tag">GAN</span>
+      <span class="tag">VAE</span>
+      <span class="tag">Python</span>
+      <span class="tag">PyTorch</span>
+      <a href="ctgan-simulation.html" class="tag accent" style="text-decoration:none;">▶ Ver Simulação</a>
+      <a href="ctgan-rdt.html" class="tag accent" style="text-decoration:none;">▶ Aprofundamento RDT</a>
+      <a href="ctgan-normalizacao-rdt.html" class="tag accent" style="text-decoration:none;">▶ Processo de Normalização</a>
+      <a href="ctgan-rdt-uso.html" class="tag accent" style="text-decoration:none;">▶ CTGAN × RDT Análise</a>
+    </div>
+  </header>
+
+  <!-- ABSTRACT -->
+  <section id="abstract">
+    <h2>Resumo</h2>
+    <p>
+      Modelar a distribuição de probabilidade das linhas em dados tabulares e gerar dados
+      sintéticos realistas não é uma tarefa trivial. Dados tabulares geralmente contêm uma
+      mistura de colunas discretas e contínuas. Colunas contínuas podem ter múltiplos modos,
+      enquanto colunas discretas são frequentemente desbalanceadas, tornando a modelagem difícil.
+    </p>
+    <p>
+      Modelos estatísticos e de redes neurais existentes não conseguem modelar adequadamente
+      esse tipo de dado. O <strong>CTGAN</strong> utiliza um gerador condicional para resolver
+      esses desafios, e o <strong>TVAE</strong> adapta um autoencoder variacional para o mesmo propósito.
+    </p>
+    <p style="color:var(--muted); font-size:.9rem;">
+      O CTGAN supera métodos bayesianos na maioria dos datasets reais e ultrapassa baselines
+      de deep learning em pelo menos 87,5% dos datasets avaliados.
+    </p>
+  </section>
+
+  <!-- CHALLENGES -->
+  <section id="challenges">
+    <h2>5 Desafios Principais</h2>
+    <p>A Seção 3 do artigo identifica cinco desafios únicos ao aplicar GANs à geração de dados tabulares:</p>
+
+    <div class="challenges">
+      <div class="challenge-card">
+        <div class="num">1</div>
+        <h4>Tipos de Dados Mistos</h4>
+        <p>Dados tabulares do mundo real consistem em tipos mistos. GANs devem aplicar softmax e tanh na saída para gerar simultaneamente colunas discretas e contínuas.</p>
+      </div>
+      <div class="challenge-card">
+        <div class="num">2</div>
+        <h4>Distribuições Não-Gaussianas</h4>
+        <p>Em imagens, os pixels seguem uma distribuição semelhante à Gaussiana. Valores contínuos em dados tabulares são geralmente não-Gaussianos, onde a transformação min-max leva ao problema de gradiente que desaparece.</p>
+      </div>
+      <div class="challenge-card">
+        <div class="num">3</div>
+        <h4>Distribuições Multimodais</h4>
+        <p>57 das 123 colunas contínuas nos 8 datasets reais possuem múltiplos modos. Uma GAN simples não consegue modelar todos os modos em um dataset 2D básico.</p>
+      </div>
+      <div class="challenge-card">
+        <div class="num">4</div>
+        <h4>Aprendizado com Vetores One-Hot Esparsos</h4>
+        <p>Um discriminador simples pode distinguir dados reais e falsos verificando a esparsidade da distribuição, em vez de considerar a autenticidade geral de uma linha.</p>
+      </div>
+      <div class="challenge-card">
+        <div class="num">5</div>
+        <h4>Colunas Categóricas Altamente Desbalanceadas</h4>
+        <p>636 das 1048 colunas categóricas são altamente desbalanceadas (categoria majoritária &gt; 90%). Isso cria um colapso de modos severo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODE-SPECIFIC NORMALIZATION -->
+  <section id="normalization">
+    <h2>Normalização por Modos</h2>
+
+    <div class="paper-excerpt">
+      <span class="label">Artigo § 4.2</span>
+      Cada coluna contínua é modelada usando um Modelo de Mistura Gaussiana Variacional. Cada
+      valor é decomposto em um vetor one-hot indicando o modo e um escalar indicando o valor
+      dentro desse modo: <code>αᵢ,ⱼ = (cᵢ,ⱼ − ηₛ) / (4ϕₛ)</code> normalizado para <code>[−1, 1]</code>
+      via tanh.
+      <cite>— Xu et al., § 4.2 Mode-specific Normalization</cite>
+    </div>
+
+    <h3>Por que não Min-Max simples?</h3>
+    <p>
+      A normalização min-max colapsa todos os valores contínuos em um único modo, apagando a
+      estrutura multi-modal. A normalização por modos usa um Modelo de Mistura Gaussiana (GMM)
+      para descobrir modos, e depois representa cada valor como <strong>(modo, valor-dentro-do-modo)</strong>.
+    </p>
+
+    <h3>Os Três Passos</h3>
+    <ol style="margin:.5rem 0 1rem 1.5rem;">
+      <li><strong>Ajustar GMM:</strong> Usar uma Mistura Gaussiana Variacional para estimar o número de modos <em>m</em> e seus parâmetros (μ, η, ϕ).</li>
+      <li><strong>Calcular probabilidades dos modos:</strong> Para cada valor, calcular ρₖ = μₖ · N(cᵢ,ⱼ; ηₖ, ϕₖ).</li>
+      <li><strong>Amostrar e codificar:</strong> Amostrar um modo da densidade de probabilidade, produzir one-hot β e escalar α = tanh((c − η) / (4ϕ)).</li>
+    </ol>
+
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/data_transformer.py</span>
+        <span>linhas 36–62</span>
+      </header>
+      <pre><code>def _fit_continuous(self, data):
+    column_name = data.columns[0]
+    gm = ClusterBasedNormalizer(
+        missing_value_generation='from_column',
+        max_clusters=min(len(data), self._max_clusters),
+        weight_threshold=self._weight_threshold,
+    )
+    gm.fit(data, column_name)
+    num_components = sum(gm.valid_component_indicator)
+
+    return ColumnTransformInfo(
+        column_name=column_name,
+        column_type='continuous',
+        transform=gm,
+        output_info=[
+            SpanInfo(1, 'tanh'),                    # α — escalar
+            SpanInfo(num_components, 'softmax')     # β — one-hot do modo
+        ],
+        output_dimensions=1 + num_components,
+    )</code></pre>
+    </div>
+
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/data_transformer.py</span>
+        <span>linhas 119–134</span>
+      </header>
+      <pre><code>def _transform_continuous(self, column_transform_info, data):
+    column_name = data.columns[0]
+    flattened_column = data[column_name].to_numpy().flatten()
+    data = data.assign(**{column_name: flattened_column})
+    gm = column_transform_info.transform
+    transformed = gm.transform(data)
+
+    output = np.zeros((len(transformed), column_transform_info.output_dimensions))
+    output[:, 0] = transformed[f'{column_name}.normalized'].to_numpy()
+    index = transformed[f'{column_name}.component'].to_numpy().astype(int)
+    output[np.arange(index.size), index + 1] = 1.0  # one-hot do modo
+
+    return output</code></pre>
+    </div>
+  </section>
+
+  <!-- CONDITIONAL GENERATOR -->
+  <section id="conditional">
+    <h2>Gerador Condicional &amp; Treinamento por Amostragem</h2>
+
+    <div class="paper-excerpt">
+      <span class="label">Artigo § 4.3</span>
+      O gerador condicional é treinado amostrando uma coluna discreta com probabilidade igual,
+      e então amostrando um valor da distribuição de log-frequência dessa coluna. O vetor de
+      condição é concatenado à entrada de ruído, e uma perda de entropia cruzada penaliza o
+      gerador quando a condição não é atendida.
+      <cite>— Xu et al., § 4.3 Conditional Generator and Training-by-Sampling</cite>
+    </div>
+
+    <h3>Algoritmo de Treinamento por Amostragem</h3>
+    <ol style="margin:.5rem 0 1rem 1.5rem;">
+      <li>Criar <em>N<sub>d</sub></em> vetores de máscara preenchidos com zeros <em>mᵢ</em></li>
+      <li>Selecionar aleatoriamente uma coluna discreta <em>D<sub>i*</sub></em> com <strong>probabilidade igual</strong></li>
+      <li>Construir PMF usando a <strong>log-frequência</strong> de cada categoria</li>
+      <li>Selecionar aleatoriamente o valor <em>k*</em> de acordo com a PMF</li>
+      <li>Definir <code>m<sub>i*</sub><sup>(k*)</sup> = 1</code></li>
+      <li>Calcular <code>cond = m₁ ⊕ ... ⊕ m<sub>N<sub>d</sub></sub></code></li>
+    </ol>
+    <p>
+      Isso garante que cada coluna discreta e categoria seja visitada proporcionalmente,
+      superando o problema do desbalanceamento.
+    </p>
+
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/data_sampler.py</span>
+        <span>linhas 81–106 — sample_condvec()</span>
+      </header>
+      <pre><code>def sample_condvec(self, batch):
+    """Gera o vetor condicional para treinamento."""
+    if self._n_discrete_columns == 0:
+        return None
+
+    # Passo 2: seleciona aleatoriamente uma coluna discreta (probabilidade igual)
+    discrete_column_id = np.random.choice(
+        np.arange(self._n_discrete_columns), batch
+    )
+
+    cond = np.zeros((batch, self._n_categories), dtype='float32')
+    mask = np.zeros((batch, self._n_discrete_columns), dtype='float32')
+    mask[np.arange(batch), discrete_column_id] = 1
+
+    # Passos 3-4: amostra categoria da PMF de log-frequência
+    category_id_in_col = self._random_choice_prob_index(discrete_column_id)
+    category_id = (self._discrete_column_cond_st[discrete_column_id]
+                   + category_id_in_col)
+
+    # Passo 5: define one-hot no vetor de condição
+    cond[np.arange(batch), category_id] = 1
+
+    return cond, mask, discrete_column_id, category_id_in_col</code></pre>
+    </div>
+
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/ctgan.py</span>
+        <span>linhas 241–263 — _cond_loss()</span>
+      </header>
+      <pre><code>def _cond_loss(self, data, c, m):
+    """Calcula a perda de entropia cruzada na coluna discreta fixa."""
+    loss = []
+    st = 0
+    st_c = 0
+    for column_info in self._transformer.output_info_list:
+        for span_info in column_info:
+            if len(column_info) != 1 or span_info.activation_fn != 'softmax':
+                st += span_info.dim
+            else:
+                ed = st + span_info.dim
+                ed_c = st_c + span_info.dim
+                tmp = functional.cross_entropy(
+                    data[:, st:ed],
+                    torch.argmax(c[:, st_c:ed_c], dim=1),
+                    reduction='none'
+                )
+                loss.append(tmp)
+                st = ed
+                st_c = ed_c
+
+    loss = torch.stack(loss, dim=1)
+    return (loss * m).sum() / data.size()[0]</code></pre>
+    </div>
+  </section>
+
+  <!-- NETWORK STRUCTURE -->
+  <section id="network">
+    <h2>Estrutura da Rede</h2>
+
+    <div class="paper-excerpt">
+      <span class="label">Artigo § 4.4</span>
+      Redes totalmente conectadas no gerador e no criticador. Duas camadas ocultas em ambos.
+      O criticador usa PacGAN com tamanho de pac 10. Treinado com perda WGAN e penalidade de
+      gradiente. Otimizador Adam com taxa de aprendizado 2·10⁻⁴.
+      <cite>— Xu et al., § 4.4 Network Structure</cite>
+    </div>
+
+    <h3>Arquitetura do Gerador</h3>
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/ctgan.py</span>
+        <span>linhas 82–98 — Generator</span>
+      </header>
+      <pre><code>class Generator(Module):
+    """Gerador para o CTGAN."""
+
+    def __init__(self, embedding_dim, generator_dim, data_dim):
+        super(Generator, self).__init__()
+        dim = embedding_dim
+        seq = []
+        for item in list(generator_dim):
+            seq += [Residual(dim, item)]
+            dim += item                          # skip connection concatena
+        seq.append(Linear(dim, data_dim))
+        self.seq = Sequential(*seq)
+
+    def forward(self, input_):
+        data = self.seq(input_)
+        return data</code></pre>
+    </div>
+
+    <h3>Bloco Residual</h3>
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/ctgan.py</span>
+        <span>linhas 65–79 — Residual</span>
+      </header>
+      <pre><code>class Residual(Module):
+    """Camada residual para o CTGAN."""
+
+    def __init__(self, i, o):
+        super(Residual, self).__init__()
+        self.fc = Linear(i, o)
+        self.bn = BatchNorm1d(o)
+        self.relu = ReLU()
+
+    def forward(self, input_):
+        out = self.fc(input_)
+        out = self.bn(out)
+        out = self.relu(out)
+        return torch.cat([out, input_], dim=1)  # skip connection</code></pre>
+    </div>
+
+    <h3>Discriminador (Criticador) com PacGAN</h3>
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/ctgan.py</span>
+        <span>linhas 19–63 — Discriminator</span>
+      </header>
+      <pre><code>class Discriminator(Module):
+    """Discriminador para o CTGAN."""
+
+    def __init__(self, input_dim, discriminator_dim, pac=10):
+        super(Discriminator, self).__init__()
+        dim = input_dim * pac
+        self.pac = pac
+        self.pacdim = dim
+        seq = []
+        for item in list(discriminator_dim):
+            seq += [Linear(dim, item), LeakyReLU(0.2), Dropout(0.5)]
+            dim = item
+        seq += [Linear(dim, 1)]
+        self.seq = Sequential(*seq)
+
+    def calc_gradient_penalty(self, real_data, fake_data, device, pac=10, lambda_=10):
+        alpha = torch.rand(real_data.size(0) // pac, 1, 1, device=device)
+        alpha = alpha.repeat(1, pac, real_data.size(1))
+        alpha = alpha.view(-1, real_data.size(1))
+        interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+        disc_interpolates = self(interpolates)
+        gradients = torch.autograd.grad(
+            outputs=disc_interpolates, inputs=interpolates,
+            grad_outputs=torch.ones(disc_interpolates.size(), device=device),
+            create_graph=True, retain_graph=True, only_inputs=True,
+        )[0]
+        gradients_view = gradients.view(-1, pac * real_data.size(1)).norm(2, dim=1) - 1
+        gradient_penalty = (gradients_view ** 2).mean() * lambda_
+        return gradient_penalty</code></pre>
+    </div>
+
+    <h3>Loop de Treinamento</h3>
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/ctgan.py</span>
+        <span>linhas 388–465 — loop interno do fit()</span>
+      </header>
+      <pre><code>for id_ in range(steps_per_epoch):
+    # ── Passo do Discriminador ──
+    for n in range(self._discriminator_steps):
+        fakez = torch.normal(mean=mean, std=std)
+        condvec = self._data_sampler.sample_condvec(self._batch_size)
+        # ... (condicionamento, amostragem) ...
+        fake = self._generator(fakez)
+        fakeact = self._apply_activate(fake)
+        # Perda WGAN-GP
+        pen = discriminator.calc_gradient_penalty(real_cat, fake_cat, ...)
+        loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
+        loss_d.backward(); optimizerD.step()
+
+    # ── Passo do Gerador ──
+    fakez = torch.normal(mean=mean, std=std)
+    condvec = self._data_sampler.sample_condvec(self._batch_size)
+    # ... (condicionamento) ...
+    fake = self._generator(fakez)
+    cross_entropy = self._cond_loss(fake, c1, m1)
+    loss_g = -torch.mean(y_fake) + cross_entropy
+    loss_g.backward(); optimizerG.step()</code></pre>
+    </div>
+  </section>
+
+  <!-- TVAE -->
+  <section id="tvae">
+    <h2>Modelo TVAE</h2>
+
+    <div class="paper-excerpt">
+      <span class="label">Artigo § 4.5</span>
+      O TVAE adapta o VAE para dados tabulares usando o mesmo pré-processamento do CTGAN. O
+      codificador mapeia os dados para um espaço latente (μ, σ), e o decodificador reconstrói
+      com uma perda modificada que leva em conta tanto saídas contínuas (Gaussianas) quanto
+      discretas (categóricas).
+      <cite>— Xu et al., § 4.5 TVAE Model</cite>
+    </div>
+
+    <h3>Codificador</h3>
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/tvae.py</span>
+        <span>linhas 17–47 — Encoder</span>
+      </header>
+      <pre><code>class Encoder(Module):
+    def __init__(self, data_dim, compress_dims, embedding_dim):
+        super(Encoder, self).__init__()
+        dim = data_dim
+        seq = []
+        for item in list(compress_dims):
+            seq += [Linear(dim, item), ReLU()]
+            dim = item
+        self.seq = Sequential(*seq)
+        self.fc1 = Linear(dim, embedding_dim)   # μ
+        self.fc2 = Linear(dim, embedding_dim)   # log σ²
+
+    def forward(self, input_):
+        feature = self.seq(input_)
+        mu = self.fc1(feature)
+        logvar = self.fc2(feature)
+        std = torch.exp(0.5 * logvar)
+        return mu, std, logvar</code></pre>
+    </div>
+
+    <h3>Decodificador</h3>
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/tvae.py</span>
+        <span>linhas 50–76 — Decoder</span>
+      </header>
+      <pre><code>class Decoder(Module):
+    def __init__(self, embedding_dim, decompress_dims, data_dim):
+        super(Decoder, self).__init__()
+        dim = embedding_dim
+        seq = []
+        for item in list(decompress_dims):
+            seq += [Linear(dim, item), ReLU()]
+            dim = item
+        seq.append(Linear(dim, data_dim))
+        self.seq = Sequential(*seq)
+        self.sigma = Parameter(torch.ones(data_dim) * 0.1)
+
+    def forward(self, input_):
+        return self.seq(input_), self.sigma</code></pre>
+    </div>
+
+    <h3>Função de Perda</h3>
+    <div class="code-block">
+      <header>
+        <span class="file">ctgan/synthesizers/tvae.py</span>
+        <span>linhas 79–103 — _loss_function()</span>
+      </header>
+      <pre><code>def _loss_function(recon_x, x, sigmas, mu, logvar, output_info, factor):
+    st = 0
+    loss = []
+    for column_info in output_info:
+        for span_info in column_info:
+            if span_info.activation_fn != 'softmax':
+                # Contínuo: log-verossimilhança negativa Gaussiana
+                ed = st + span_info.dim
+                std = sigmas[st]
+                eq = x[:, st] - torch.tanh(recon_x[:, st])
+                loss.append((eq**2 / 2 / (std**2)).sum())
+                loss.append(torch.log(std) * x.size()[0])
+                st = ed
+            else:
+                # Discreto: entropia cruzada
+                ed = st + span_info.dim
+                loss.append(cross_entropy(
+                    recon_x[:, st:ed],
+                    torch.argmax(x[:, st:ed], dim=-1),
+                    reduction='sum'
+                ))
+                st = ed
+
+    KLD = -0.5 * torch.sum(1 + logvar - mu**2 - logvar.exp())
+    return sum(loss) * factor / x.size()[0], KLD / x.size()[0]</code></pre>
+    </div>
+  </section>
+
+  <!-- BENCHMARKS -->
+  <section id="benchmarks">
+    <h2>Resultados</h2>
+
+    <p>
+      O artigo avalia em 7 datasets simulados e 8 reais usando adequação de verossimilhança
+      (L<sub>test</sub>) e eficácia de machine learning (acurácia de classificador/regressor
+      relativa aos dados reais).
+    </p>
+
+    <div class="paper-excerpt">
+      <span class="label">Artigo § 5.3</span>
+      O CTGAN supera redes bayesianas na maioria dos datasets reais. O TVAE alcança a melhor
+      adequação de verossimilhança em dados simulados. Tanto CTGAN quanto TVAE superam
+      significativamente métodos anteriores de deep learning (MedGAN, VeeGAN, TableGAN).
+      <cite>— Xu et al., § 5.3 Benchmarking Results</cite>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Método</th><th>GM Sim. L<sub>test</sub></th><th>BN Sim. L<sub>test</sub></th><th>Real clf</th><th>Real reg</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Identity</td><td>-2.61</td><td>-9.36</td><td>0.743</td><td>0.14</td></tr>
+          <tr><td>CLBN</td><td>-7.31</td><td>-9.92</td><td>0.382</td><td>-6.28</td></tr>
+          <tr><td>PrivBN</td><td>-12.42</td><td>-10.90</td><td>0.225</td><td>-4.49</td></tr>
+          <tr><td>MedGAN</td><td>-60.03</td><td>-12.15</td><td>0.137</td><td>-8.80</td></tr>
+          <tr><td>VEEGAN</td><td>-4.22</td><td>-13.86</td><td>0.143</td><td>-6.5e6</td></tr>
+          <tr><td>TableGAN</td><td>-4.12</td><td>-10.47</td><td>0.162</td><td>-3.09</td></tr>
+          <tr><td>TVAE</td><td>-5.42</td><td class="highlight">-9.59</td><td class="highlight">0.519</td><td class="highlight">-0.20</td></tr>
+          <tr><td>CTGAN</td><td class="highlight">-3.40</td><td>-10.60</td><td>0.469</td><td>-0.43</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ABLATION -->
+  <section id="ablation">
+    <h2>Estudo de Ablação</h2>
+
+    <p>
+      O estudo de ablação remove ou substitui componentes individuais para medir sua
+      contribuição para o desempenho geral:
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variação do Componente</th><th>Delta de Desempenho</th></tr></thead>
+        <tbody>
+          <tr><td>GMM com 5 clusters (GMM5)</td><td>-4.1%</td></tr>
+          <tr><td>GMM com 10 clusters (GMM10)</td><td>-8.6%</td></tr>
+          <tr><td>Normalização MinMax</td><td style="color:#dc2626; font-weight:700;">-25.7%</td></tr>
+          <tr><td>Sem Treinamento por Amostragem</td><td style="color:#dc2626; font-weight:700;">-17.8%</td></tr>
+          <tr><td>Sem Gerador Condicional</td><td style="color:#dc2626; font-weight:700;">-36.5%</td></tr>
+          <tr><td>Apenas GAN (sem WGAN-GP, sem PacGAN)</td><td>-6.5%</td></tr>
+          <tr><td>Apenas WGAN-GP</td><td style="color:#16a34a; font-weight:700;">+1.75%</td></tr>
+          <tr><td>GAN + PacGAN</td><td>-5.2%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <details open>
+      <summary>Conclusões Principais</summary>
+      <div class="detail-body">
+        <ul style="margin-left:1.5rem; line-height:2;">
+          <li><strong>O Gerador Condicional</strong> é o componente mais crítico (-36,5% quando removido).</li>
+          <li><strong>A normalização MinMax</strong> causa degradação severa (-25,7%) — a normalização por modos é essencial.</li>
+          <li><strong>O Treinamento por Amostragem</strong> melhora o desempenho em 17,8% em relação ao treinamento ingênuo.</li>
+          <li><strong>O WGAN-GP</strong> fornece um ganho modesto de +1,75% em relação à perda padrão da GAN.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <div class="nav-arrows">
+    <a href="#top">↑ Voltar ao topo</a>
+    <a href="ctgan-simulation.html">Ver Simulação →</a>
+    <a href="ctgan-rdt.html">Aprofundamento RDT →</a>
+    <a href="ctgan-rdt-uso.html">Análise CTGAN × RDT →</a>
+  </div>
+
+  <footer>
+    <p>Documentação gerada a partir do código-fonte do <a href="https://github.com/sdv-dev/CTGAN">CTGAN</a> e do artigo original.</p>
+    <p style="margin-top:.3rem;">Xu, L., Skoularidou, M., Cuesta-Infante, A., &amp; Veeramachaneni, K. (2019). <em>Modeling Tabular Data using Conditional GAN.</em> arXiv:1907.00503.</p>
+  </footer>
+
+</div>
+
+<script>
+  const toc = document.getElementById('toc');
+  const sections = document.querySelectorAll('section[id]');
+  const tocLinks = toc.querySelectorAll('a');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        tocLinks.forEach(a => a.classList.remove('active'));
+        const link = toc.querySelector(`a[href="#${entry.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

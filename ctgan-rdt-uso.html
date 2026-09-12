@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTGAN × RDT — Análise de Uso e Dependências</title>
+    <style>
+        :root {
+            --entprimary: #2563eb;
+            --primary-light: #dbeafe;
+            --accent: #f59e0b;
+            --accent-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.7;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        header .subtitle {
+            font-size: 1.1rem;
+            color: var(--gray-500);
+        }
+
+        header .meta {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--gray-400);
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            color: var(--gray-900);
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            color: var(--gray-700);
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        h4 {
+            font-size: 1rem;
+            color: var(--gray-600);
+            margin: 1rem 0 0.5rem;
+            font-weight: 600;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        code {
+            font-family: var(--mono);
+            background: var(--gray-100);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.88em;
+            color: var(--danger);
+        }
+
+        pre {
+            background: var(--gray-900);
+            color: #e5e7eb;
+            padding: 1.25rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0 1.5rem;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .card.alert {
+            border-left: 4px solid var(--danger);
+        }
+
+        .card.alert .card-title {
+            color: var(--danger);
+        }
+
+        .card.info {
+            border-left: 4px solid var(--primary);
+        }
+
+        .card.info .card-title {
+            color: var(--primary);
+        }
+
+        .card.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .card.success .card-title {
+            color: var(--success);
+        }
+
+        .card.warning {
+            border-left: 4px solid var(--accent);
+        }
+
+        .card.warning .card-title {
+            color: var(--accent);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        th,
+        td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-700);
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover td {
+            background: var(--gray-50);
+        }
+
+        .method-tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: var(--mono);
+        }
+
+        .tag-fit {
+            background: var(--success-light);
+            color: #065f46;
+        }
+
+        .tag-transform {
+            background: var(--primary-light);
+            color: #1e40af;
+        }
+
+        .tag-reverse {
+            background: var(--accent-light);
+            color: #92400e;
+        }
+
+        .tag-prop {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+
+        .inheritance-chain {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--gray-100);
+            border-radius: 8px;
+        }
+
+        .inheritance-chain .class-box {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .inheritance-chain .arrow {
+            font-size: 1.2rem;
+            color: var(--gray-400);
+        }
+
+        .class-base {
+            background: var(--gray-300);
+            color: var(--gray-800);
+        }
+
+        .class-float {
+            background: var(--primary-light);
+            color: #1e40af;
+        }
+
+        .class-cluster {
+            background: var(--success-light);
+            color: #065f46;
+        }
+
+        .class-ohe {
+            background: var(--accent-light);
+            color: #92400e;
+        }
+
+        .flow-diagram {
+            background: var(--gray-900);
+            color: #e5e7eb;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            line-height: 1.8;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .flow-diagram .comment {
+            color: #6b7280;
+        }
+
+        .flow-diagram .highlight {
+            color: #60a5fa;
+            font-weight: bold;
+        }
+
+        .flow-diagram .method {
+            color: #34d399;
+        }
+
+        .flow-diagram .data {
+            color: #fbbf24;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .feature-item {
+            padding: 1rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            background: white;
+        }
+
+        .feature-item.used {
+            border-color: var(--success);
+            background: var(--success-light);
+        }
+
+        .feature-item.missing {
+            border-color: var(--danger);
+            background: var(--danger-light);
+        }
+
+        .feature-item .label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .feature-item.used .label {
+            color: #065f46;
+        }
+
+        .feature-item.missing .label {
+            color: #991b1b;
+        }
+
+        ul {
+            margin: 0.5rem 0 1rem 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.3rem;
+        }
+
+        .toc {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .toc-title {
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--gray-700);
+        }
+
+        .toc ol {
+            margin: 0;
+            padding-left: 1.25rem;
+        }
+
+        .toc li {
+            margin-bottom: 0.4rem;
+        }
+
+        .toc a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-used {
+            background: var(--success-light);
+            color: #065f46;
+        }
+
+        .badge-missing {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+
+        .badge-partial {
+            background: var(--accent-light);
+            color: #92400e;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <header>
+            <h1>CTGAN × RDT</h1>
+            <p class="subtitle">Análise completa do uso do RDT pelo CTGAN — métodos, herança e lacunas</p>
+            <p class="meta">Atualizado em Setembro 2026 · Baseado no RDT <code>main</code> e CTGAN <code>main</code></p>
+        </header>
+
+        <nav class="toc">
+            <div class="toc-title">Sumário</div>
+            <ol>
+                <li><a href="#visao-geral">Visão Geral da Dependência</a></li>
+                <li><a href="#classes-rdt">Classes RDT Utilizadas</a></li>
+                <li><a href="#cadeia-heranca">Cadeia de Herança</a></li>
+                <li><a href="#metodos-chamados">Métodos Chamados pelo CTGAN</a></li>
+                <li><a href="#fluxo-dados">Fluxo de Dados: CTGAN ↔ RDT</a></li>
+                <li><a href="#o-que-usamos">O que o CTGAN Realmente Usa</a></li>
+                <li><a href="#o-que-descartamos">O que Descartamos na Reimplementação</a></li>
+                <li><a href="#decisao-fork">Decisão: Forcar o RDT</a></li>
+            </ol>
+        </nav>
+
+        <!-- ============================================ -->
+        <h2 id="visao-geral">1. Visão Geral da Dependência</h2>
+
+        <p>
+            O CTGAN depende do RDT (<strong>Reversible Data Transforms</strong>) para converter
+            colunas tabulares brutas em representações numéricas adequadas para redes neurais.
+            Essa conversão é feita pelo <code>DataTransformer</code> do CTGAN, que orquestra
+            transformadores do RDT para cada coluna do dataset.
+        </p>
+
+        <div class="card info">
+            <div class="card-title">Dependência Circular</div>
+            <p>
+                O CTGAN importa apenas <strong>2 classes</strong> do RDT. Porém, essas classes
+                trazem uma cadeia de herança de 3 níveis com funcionalidades substanciais
+                que o CTGM受益 indiretamente.
+            </p>
+        </div>
+
+        <!-- ============================================ -->
+        <h2 id="classes-rdt">2. Classes RDT Utilizadas</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Classe</th>
+                    <th>Módulo</th>
+                    <th>Uso no CTGAN</th>
+                    <th>Linhas de Código</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>ClusterBasedNormalizer</code></td>
+                    <td><code>rdt.transformers.numerical</code></td>
+                    <td>Colunas contínuas — normalização com Bayesian GMM</td>
+                    <td>~190</td>
+                </tr>
+                <tr>
+                    <td><code>OneHotEncoder</code></td>
+                    <td><code>rdt.transformers.categorical</code></td>
+                    <td>Colunas discretas — codificação one-hot</td>
+                    <td>~145</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>A importação original no CTGAN:</p>
+        <pre><code>from rdt.transformers import ClusterBasedNormalizer, OneHotEncoder</code></pre>
+
+        <!-- ============================================ -->
+        <h2 id="cadeia-heranca">3. Cadeia de Herança</h2>
+
+        <p>Cada classe do RDT que o CTGM usa herda funcionalidade de 2 classes base:</p>
+
+        <div class="inheritance-chain">
+            <span class="class-box class-base">BaseTransformer</span>
+            <span class="arrow">→</span>
+            <span class="class-box class-float">FloatFormatter</span>
+            <span class="arrow">→</span>
+            <span class="class-box class-cluster">ClusterBasedNormalizer</span>
+        </div>
+
+        <div class="inheritance-chain">
+            <span class="class-box class-base">BaseTransformer</span>
+            <span class="arrow">→</span>
+            <span class="class-box class-ohe">OneHotEncoder</span>
+        </div>
+
+        <h3>3.1 BaseTransformer (606 linhas)</h3>
+        <p>Classe base para todos os transformadores do RDT. Fornece:</p>
+        <div class="feature-grid">
+            <div class="feature-item used">
+                <div class="label">Usado pelo CTGAN</div>
+                <ul>
+                    <li><code>fit(data, column_name)</code> — API pública de ajuste</li>
+                    <li><code>transform(data)</code> — API pública de transformação</li>
+                    <li><code>reverse_transform(data)</code> — API pública de reversão</li>
+                    <li><code>get_output_sdtypes()</code> — metadados das colunas de saída</li>
+                    <li><code>dummies</code> — categorias encontradas (OneHotEncoder)</li>
+                </ul>
+            </div>
+            <div class="feature-item missing">
+                <div class="label">NÃO usado pelo CTGAN</div>
+                <ul>
+                    <li><code>random_states</code> — gerenciamento de estado aleatório por método</li>
+                    <li><code>set_random_state()</code> — controle de reprodutibilidade</li>
+                    <li><code>reset_randomization()</code> — resetar estado</li>
+                    <li><code>output_properties</code> — metadados de propriedades de saída</li>
+                    <li><code>set_fitted_parameters()</code> — ajuste manual</li>
+                    <li><code>is_generator()</code> — verificar se gera dados</li>
+                    <li><code>get_name()</code> — nome da classe</li>
+                    <li><code>get_subclasses()</code> — subclasses disponíveis</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>3.2 FloatFormatter (888 linhas)</h3>
+        <p>Transformador para dados numéricos. Herda de <code>BaseTransformer</code>. Fornece:</p>
+        <div class="feature-grid">
+            <div class="feature-item used">
+                <div class="label">Usado pelo CTGAN (indiretamente)</div>
+                <ul>
+                    <li><code>missing_value_generation='from_column'</code> — tratamento de nulos</li>
+                    <li><code>NullTransformer</code> — substituição de valores nulos</li>
+                    <li><code>_dtype</code> — preservação do tipo original</li>
+                </ul>
+            </div>
+            <div class="feature-item missing">
+                <div class="label">NÃO usado pelo CTGAN</div>
+                <ul>
+                    <li><code>learn_rounding_scheme</code> — preservar casas decimais</li>
+                    <li><code>enforce_min_max_values</code> — clip nos valores originais</li>
+                    <li><code>computer_representation</code> — Int8/16/32/64, UInt, Float</li>
+                    <li><code>missing_value_replacement</code> — estratégia de substituição (mean/mode/random)</li>
+                    <li><code>_rounding_digits</code> — dígitos de arredondamento aprendidos</li>
+                    <li><code>_min_value</code> / <code>_max_value</code> — limites originais</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>3.3 ClusterBasedNormalizer</h3>
+        <p>Herda de <code>FloatFormatter</code>. Implementação específica do CTGAN:</p>
+        <div class="feature-grid">
+            <div class="feature-item used">
+                <div class="label">Usado pelo CTGAN</div>
+                <ul>
+                    <li><code>max_clusters</code> — número máximo de componentes GMM</li>
+                    <li><code>weight_threshold</code> — limiar de peso para componentes válidos</li>
+                    <li><code>valid_component_indicator</code> — quais componentes são válidos</li>
+                    <li><code>STD_MULTIPLIER = 4</code> — multiplicador de desvio padrão</li>
+                    <li><code>fit(data, column_name)</code></li>
+                    <li><code>transform(data)</code></li>
+                    <li><code>reverse_transform(data)</code></li>
+                    <li><code>get_output_sdtypes()</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>3.4 OneHotEncoder</h3>
+        <p>Herda de <code>BaseTransformer</code> (não de <code>FloatFormatter</code>):</p>
+        <div class="feature-grid">
+            <div class="feature-item used">
+                <div class="label">Usado pelo CTGAN</div>
+                <ul>
+                    <li><code>dummies</code> — lista de categorias encontradas</li>
+                    <li><code>fit(data, column_name)</code></li>
+                    <li><code>transform(data)</code></li>
+                    <li><code>reverse_transform(data)</code></li>
+                    <li><code>get_output_sdtypes()</code></li>
+                </ul>
+            </div>
+            <div class="feature-item missing">
+                <div class="label">NÃO usado pelo CTGAN</div>
+                <ul>
+                    <li><code>_dummy_na</code> — tratamento de nulos como categoria</li>
+                    <li><code>_dummy_encoded</code> — codificação por índice</li>
+                    <li><code>_indexer</code> — mapeamento de índices</li>
+                    <li><code>output_properties</code> — propriedades de saída</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <h2 id="metodos-chamados">4. Métodos Chamados pelo CTGAN</h2>
+
+        <p>Todos os métodos são chamados através do <code>DataTransformer</code> do CTGAN:</p>
+
+        <h3>4.1 ClusterBasedNormalizer</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Chamado em</th>
+                    <th>Parâmetros</th>
+                    <th>Retorna</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code class="method-tag tag-fit">fit</code></td>
+                    <td><code>DataTransformer._fit_continuous()</code></td>
+                    <td><code>data</code> (pd.DataFrame), <code>column_name</code> (str)</td>
+                    <td>None (ajusta o modelo internamente)</td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-transform">transform</code></td>
+                    <td><code>DataTransformer._transform_continuous()</code></td>
+                    <td><code>data</code> (pd.DataFrame com 1 coluna)</td>
+                    <td>pd.DataFrame com colunas <code>.normalized</code> e <code>.component</code></td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-reverse">reverse_transform</code></td>
+                    <td><code>DataTransformer._inverse_transform_continuous()</code></td>
+                    <td><code>data</code> (pd.DataFrame com colunas do <code>get_output_sdtypes()</code>)</td>
+                    <td>pd.DataFrame com 1 coluna (valores originais)</td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-prop">get_output_sdtypes</code></td>
+                    <td><code>DataTransformer._inverse_transform_continuous()</code></td>
+                    <td>Nenhum</td>
+                    <td>dict com nomes das colunas de saída</td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-prop">valid_component_indicator</code></td>
+                    <td><code>DataTransformer._fit_continuous()</code></td>
+                    <td>—</td>
+                    <td>np.array booleano indicando componentes válidos</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>4.2 OneHotEncoder</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Chamado em</th>
+                    <th>Parâmetros</th>
+                    <th>Retorna</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code class="method-tag tag-fit">fit</code></td>
+                    <td><code>DataTransformer._fit_discrete()</code></td>
+                    <td><code>data</code> (pd.DataFrame), <code>column_name</code> (str)</td>
+                    <td>None (ajusta internamente)</td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-transform">transform</code></td>
+                    <td><code>DataTransformer._transform_discrete()</code> e
+                        <code>convert_column_name_value_to_id()</code>
+                    </td>
+                    <td><code>data</code> (pd.DataFrame com 1 coluna)</td>
+                    <td>pd.DataFrame com N colunas one-hot</td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-reverse">reverse_transform</code></td>
+                    <td><code>DataTransformer._inverse_transform_discrete()</code></td>
+                    <td><code>data</code> (pd.DataFrame com colunas do <code>get_output_sdtypes()</code>)</td>
+                    <td>pd.DataFrame com 1 coluna (categorias originais)</td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-prop">get_output_sdtypes</code></td>
+                    <td><code>DataTransformer._inverse_transform_discrete()</code></td>
+                    <td>Nenhum</td>
+                    <td>dict com nomes das colunas de saída</td>
+                </tr>
+                <tr>
+                    <td><code class="method-tag tag-prop">dummies</code></td>
+                    <td><code>DataTransformer._fit_discrete()</code></td>
+                    <td>—</td>
+                    <td>lista de categorias encontradas</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ============================================ -->
+        <h2 id="fluxo-dados">5. Fluxo de Dados: CTGAN ↔ RDT</h2>
+
+        <h3>5.1 Pipeline de Fit (Treinamento)</h3>
+        <div class="flow-diagram">
+            <span class="comment">// CTGAN.fit() inicia o processo</span>
+            train_data = <span class="data">pd.DataFrame</span> <span class="comment">// dados brutos do usuário</span>
+
+            <span class="comment">// Para cada coluna contínua:</span>
+            <span class="highlight">ClusterBasedNormalizer</span>.<span class="method">fit</span>(data, column_name)
+            └─ Herda de <span class="highlight">FloatFormatter</span>.<span class="method">_fit</span>()
+            ├─ <span class="method">_validate_values_within_bounds</span>() <span class="comment">// valida
+                limites</span>
+            ├─ preserva <span class="data">self._dtype</span> <span class="comment">// tipo original</span>
+            ├─ aprende <span class="data">self._rounding_digits</span> <span class="comment">// se
+                learn_rounding_scheme=True</span>
+            ├─ aprende <span class="data">self._min_value</span>, <span class="data">self._max_value</span> <span
+                class="comment">// se enforce_min_max_values=True</span>
+            └─ cria <span class="highlight">NullTransformer</span> <span class="comment">// trata nulos</span>
+            └─ substitui nulos por <span class="data">mean</span> (ou random/from_column)
+            └─ <span class="highlight">ClusterBasedNormalizer</span>.<span class="method">_fit</span>()
+            ├─ ajusta <span class="highlight">BayesianGaussianMixture</span> com sklearn
+            └─ define <span class="data">valid_component_indicator</span>
+
+            <span class="comment">// Para cada coluna discreta:</span>
+            <span class="highlight">OneHotEncoder</span>.<span class="method">fit</span>(data, column_name)
+            └─ Herda de <span class="highlight">BaseTransformer</span>.<span class="method">fit</span>()
+            └─ <span class="highlight">OneHotEncoder</span>.<span class="method">_fit</span>()
+            ├─ descobre categorias únicas
+            ├─ define <span class="data">self.dummies</span>
+            └─ define <span class="data">self.output_properties</span>
+        </div>
+
+        <h3>5.2 Pipeline de Transform (Geração)</h3>
+        <div class="flow-diagram">
+            <span class="comment">// CTGAN gera dados sintéticos → precisa reverter para formato original</span>
+
+            <span class="comment">// Para colunas contínuas:</span>
+            <span class="highlight">ClusterBasedNormalizer</span>.<span class="method">transform</span>(data)
+            └─ <span class="highlight">FloatFormatter</span>.<span class="method">_transform</span>()
+            └─ <span class="highlight">NullTransformer</span>.<span class="method">transform</span>() <span
+                class="comment">// já tratou nulos no fit</span>
+            └─ <span class="highlight">ClusterBasedNormalizer</span>.<span class="method">_transform</span>()
+            ├─ normaliza: <span class="data">(x - mean) / (4 * std)</span>
+            ├─ seleciona componente via <span class="method">predict_proba</span>
+            └─ retorna: [<span class="data">.normalized</span>, <span class="data">.component</span>]
+
+            <span class="comment">// Para colunas discretas:</span>
+            <span class="highlight">OneHotEncoder</span>.<span class="method">transform</span>(data)
+            └─ <span class="highlight">BaseTransformer</span>.<span class="method">transform</span>()
+            └─ <span class="highlight">OneHotEncoder</span>.<span class="method">_transform</span>()
+            └─ retorna: [<span class="data">cat_a</span>, <span class="data">cat_b</span>, <span
+                class="data">cat_c</span>, ...] <span class="comment">// 0 ou 1</span>
+        </div>
+
+        <h3>5.3 Pipeline de Reverse Transform (Desfazer)</h3>
+        <div class="flow-diagram">
+            <span class="comment">// CTGAN converte dados sintéticos de volta ao formato original</span>
+
+            <span class="comment">// Para colunas contínuas:</span>
+            <span class="highlight">ClusterBasedNormalizer</span>.<span class="method">reverse_transform</span>(data)
+            └─ <span class="highlight">ClusterBasedNormalizer</span>.<span
+                class="method">_reverse_transform_helper</span>()
+            ├─ extrai componente selecionado
+            ├─ recupera <span class="data">mean</span> e <span class="data">std</span> do componente
+            └─ reversão: <span class="data">x = normalized * 4 * std + mean</span>
+            └─ <span class="highlight">FloatFormatter</span>.<span class="method">_reverse_transform</span>()
+            ├─ aplica <span class="method">clip</span>(min, max) <span class="comment">// se
+                enforce_min_max_values=True</span>
+            ├─ aplica <span class="method">round</span>(digits) <span class="comment">// se
+                learn_rounding_scheme=True</span>
+            ├─ converte para <span class="data">self._dtype</span> <span class="comment">// tipo original</span>
+            └─ reverte nulos via <span class="highlight">NullTransformer</span>
+
+            <span class="comment">// Para colunas discretas:</span>
+            <span class="highlight">OneHotEncoder</span>.<span class="method">reverse_transform</span>(data)
+            └─ <span class="highlight">BaseTransformer</span>.<span class="method">reverse_transform</span>()
+            └─ <span class="highlight">OneHotEncoder</span>.<span class="method">_reverse_transform</span>()
+            ├─ <span class="method">argmax</span>(one_hot) <span class="comment">// encontra índice da categoria</span>
+            └─ mapeia índice → <span class="data">self.dummies</span>[índice]
+        </div>
+
+        <!-- ============================================ -->
+        <h2 id="o-que-usamos">6. O que o CTGAN Realmente Usa</h2>
+
+        <div class="card success">
+            <div class="card-title">Resumo: Interface mínima necessária</div>
+            <p>O CTGM usa apenas <strong>5 métodos/propriedades</strong> por transformador:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Classe</th>
+                        <th>Métodos/Propriedades</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>ClusterBasedNormalizer</code></td>
+                        <td>
+                            <code>fit(data, column_name)</code>,
+                            <code>transform(data)</code>,
+                            <code>reverse_transform(data)</code>,
+                            <code>get_output_sdtypes()</code>,
+                            <code>valid_component_indicator</code>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>OneHotEncoder</code></td>
+                        <td>
+                            <code>fit(data, column_name)</code>,
+                            <code>transform(data)</code>,
+                            <code>reverse_transform(data)</code>,
+                            <code>get_output_sdtypes()</code>,
+                            <code>dummies</code>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ============================================ -->
+        <h2 id="o-que-descartamos">7. O que Descartamos na Reimplementação</h2>
+
+        <div class="card alert">
+            <div class="card-title">Funcionalidades perdidas</div>
+            <p>Nossa reimplementação em <code>data_transformer.py</code> ignora:</p>
+
+            <h4>De FloatFormatter:</h4>
+            <ul>
+                <li><strong>Tratamento de nulos:</strong> <code>NullTransformer</code> com estratégias
+                    mean/random/from_column —我们的实现假设 dados limpos</li>
+                <li><strong>Arredondamento:</strong> <code>learn_rounding_scheme</code> — não preserva casas decimais
+                </li>
+                <li><strong>Limites:</strong> <code>enforce_min_max_values</code> — não faz clip nos valores</li>
+                <li><strong>Representação:</strong> <code>computer_representation</code> — não suporta Int8/16/32/64
+                </li>
+                <li><strong>Tipo original:</strong> <code>_dtype</code> — não restaura tipo da coluna</li>
+            </ul>
+
+            <h4>De BaseTransformer:</h4>
+            <ul>
+                <li><strong>Reprodutibilidade:</strong> sistema de <code>random_states</code> por método</li>
+                <li><strong>Metadados:</strong> <code>output_properties</code> e pipeline de transformadores</li>
+                <li><strong>Validação:</strong> validação de input/output</li>
+                <li><strong>API genérica:</strong> <code>fit_transform()</code>, <code>set_fitted_parameters()</code>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card warning">
+            <div class="card-title">Impacto no CTGAN</div>
+            <p>Para o uso <strong>específico</strong> do CTGAN, a maioria dessas funcionalidades não é crítica:</p>
+            <ul>
+                <li>O CTGAN já valida nulos antes de chamar o RDT (<code>_validate_null_data()</code>)</li>
+                <li>O CTGAN trabalha com float64 internamente — arredondamento e representação não importam</li>
+                <li>O clip e dtype restoration são importantes para qualidade dos dados sintéticos, mas não para
+                    treinamento</li>
+            </ul>
+            <p><strong>Porém</strong>, se o RDT for usado por outros algoritmos de geração (Gaussian Copula, etc.),
+                essas funcionalidades são importantes.</p>
+        </div>
+
+        <!-- ============================================ -->
+        <h2 id="decisao-fork">8. Decisão: Forcar o RDT</h2>
+
+        <div class="card info">
+            <div class="card-title">Por que forcar é melhor que reimplementar</div>
+            <ul>
+                <li><strong>Completude:</strong> herda toda a lógica de null handling, rounding, min/max, tipos</li>
+                <li><strong>Reutilizabilidade:</strong> outros algoritmos de geração podem usar o mesmo RDT Polars</li>
+                <li><strong>Manutenibilidade:</strong> quando o RDT lançar novas features, podemos merge</li>
+                <li><strong>Menos código:</strong> não precisamos reimplementar o que já existe</li>
+            </ul>
+        </div>
+
+        <h3>Arquivos do RDT que precisam de migração pd → pl</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Arquivo</th>
+                    <th>Linhas</th>
+                    <th>Complexidade</th>
+                    <th>Prioridade</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>rdt/transformers/base.py</code></td>
+                    <td>606</td>
+                    <td>Média — substituir pd.Series/DataFrame</td>
+                    <td><span class="badge badge-missing">Alta</span></td>
+                </tr>
+                <tr>
+                    <td><code>rdt/transformers/numerical.py</code></td>
+                    <td>888</td>
+                    <td>Alta — muitas operações pandas</td>
+                    <td><span class="badge badge-missing">Alta</span></td>
+                </tr>
+                <tr>
+                    <td><code>rdt/transformers/categorical.py</code></td>
+                    <td>1057</td>
+                    <td>Alta — pd.Categorical, pd.unique</td>
+                    <td><span class="badge badge-missing">Alta</span></td>
+                </tr>
+                <tr>
+                    <td><code>rdt/transformers/null.py</code></td>
+                    <td>194</td>
+                    <td>Baixa — operações simples</td>
+                    <td><span class="badge badge-partial">Média</span></td>
+                </tr>
+                <tr>
+                    <td><code>rdt/transformers/utils.py</code></td>
+                    <td>540</td>
+                    <td>Média — utilitários</td>
+                    <td><span class="badge badge-partial">Média</span></td>
+                </tr>
+                <tr>
+                    <td><code>rdt/hyper_transformer.py</code></td>
+                    <td>997</td>
+                    <td>Alta — orquestração principal</td>
+                    <td><span class="badge badge-used">Baixa (CTGAN não usa)</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="card success">
+            <div class="card-title">Próximo passo recomendado</div>
+            <p>
+                Forcar o repositório RDT em <code>/tmp/rdt-analysis</code>, criar branch
+                <code>feat/polars</code>, e migrar os 5 arquivos core (~3,285 linhas) de
+                <code>pd → pl</code>. Depois, o CTGAN pode importar diretamente do fork.
+            </p>
+        </div>
+
+    </div>
+</body>
+
+</html>

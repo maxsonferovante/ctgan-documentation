@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTGAN — Aprofundamento nos Transformadores RDT</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#fff; --fg:#1a1a2e; --muted:#64748b; --accent:#2563eb; --accent-bg:#eff6ff;
+      --border:#e2e8f0; --code-bg:#f8fafc; --paper-bg:#fefce8; --paper-bdr:#fbbf24;
+      --tag-bg:#f1f5f9; --green:#16a34a; --green-bg:#f0fdf4; --red:#dc2626; --orange:#f59e0b;
+      --radius:8px; --max-w:980px;
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono','Fira Code','Consolas',monospace;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--font-sans); background:var(--bg); color:var(--fg); line-height:1.7; font-size:15px; }
+    .wrapper { max-width:var(--max-w); margin:0 auto; padding:3rem 1.5rem 6rem; }
+    header { margin-bottom:2.5rem; padding-top:.5rem; }
+    header h1 { font-size:2.1rem; font-weight:800; letter-spacing:-.03em; margin-bottom:.3rem; }
+    header .subtitle { color:var(--muted); font-size:.95rem; }
+    .back-link { display:inline-block; margin-bottom:1.5rem; color:var(--accent); text-decoration:none; font-weight:600; font-size:.85rem; }
+    .back-link:hover { text-decoration:underline; }
+    h2 { font-size:1.45rem; font-weight:700; margin:2.5rem 0 1rem; padding-bottom:.4rem; border-bottom:2px solid var(--border); }
+    h3 { font-size:1.05rem; font-weight:600; margin:1.4rem 0 .5rem; }
+    h4 { font-size:.9rem; font-weight:600; margin:1rem 0 .3rem; }
+    p { margin-bottom:.8rem; }
+    .table-wrap { overflow-x:auto; margin:.8rem 0; border-radius:var(--radius); border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:.75rem; font-family:var(--font-mono); }
+    th,td { padding:.4rem .55rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+    th { background:var(--tag-bg); font-weight:700; font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-family:var(--font-sans); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--accent-bg); }
+    td.hl { font-weight:700; color:var(--accent); }
+    td.green { color:var(--green); font-weight:600; }
+    td.red { color:var(--red); font-weight:600; }
+    td.orange { color:var(--orange); font-weight:600; }
+    .step { border:1px solid var(--border); border-radius:var(--radius); margin:1.2rem 0; overflow:hidden; }
+    .step-header { display:flex; align-items:center; gap:.7rem; padding:.7rem 1rem; background:var(--tag-bg); font-weight:700; font-size:.9rem; cursor:pointer; user-select:none; }
+    .step-header .num { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; font-size:.78rem; flex-shrink:0; }
+    .step-header .arrow { margin-left:auto; transition:transform .2s; }
+    .step.open .step-header .arrow { transform:rotate(90deg); }
+    .step-body { padding:1rem 1.2rem; display:none; }
+    .step.open .step-body { display:block; }
+    pre { background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem; overflow-x:auto; font-size:.73rem; line-height:1.5; font-family:var(--font-mono); margin:.7rem 0; tab-size:4; }
+    code { background:var(--tag-bg); padding:.1em .3em; border-radius:3px; font-size:.84em; font-family:var(--font-mono); }
+    .arrow-connector { display:flex; justify-content:center; padding:.4rem 0; color:var(--muted); font-size:1.1rem; }
+    .badge { display:inline-block; padding:.12em .45em; border-radius:999px; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    .badge.real { background:var(--accent-bg); color:var(--accent); }
+    .badge.fake { background:var(--green-bg); color:var(--green); }
+    .formula-box { background:var(--paper-bg); border:1px solid var(--paper-bdr); border-radius:var(--radius); padding:.8rem 1rem; margin:.8rem 0; font-family:var(--font-mono); font-size:.78rem; line-height:1.65; }
+    .formula-box .label { display:inline-block; font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92400e; margin-bottom:.2rem; }
+    .code-ref { display:inline-block; background:var(--accent-bg); color:var(--accent); font-size:.68rem; font-weight:600; padding:.08em .4em; border-radius:3px; font-family:var(--font-mono); }
+    .val { color:var(--accent); font-weight:700; }
+    .op { color:var(--orange); font-weight:600; }
+    .callout { background:var(--accent-bg); border-left:4px solid var(--accent); padding:1rem 1.1rem; border-radius:0 var(--radius) var(--radius) 0; margin:.8rem 0; font-size:.9rem; }
+    .callout p { margin:0; }
+    .section-card { border:1px solid var(--border); border-radius:var(--radius); padding:1.2rem; margin:1rem 0; }
+    .section-card h3 { margin-top:0; }
+    .transformer-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0; }
+    .transformer-card { border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .transformer-card h4 { margin-top:0; color:var(--accent); }
+    footer { margin-top:4rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--muted); font-size:.8rem; text-align:center; }
+    footer a { color:var(--accent); text-decoration:none; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <a href="ctgan-documentation.html" class="back-link">← Voltar à Documentação</a>
+
+  <header>
+    <h1>CTGAN — Aprofundamento nos Transformadores RDT</h1>
+    <p class="subtitle">Como o CTGAN usa o RDT (Reversible Data Transforms) para codificar dados reais em tensores compatíveis com GAN</p>
+    <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.8rem;">
+      <a href="ctgan-normalizacao-rdt.html" style="text-decoration:none;"><span class="badge real">▶ Processo de Normalização Completo</span></a>
+    </div>
+  </header>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <section>
+    <h2>O que é o RDT?</h2>
+    <p>
+      <strong>RDT (Reversible Data Transforms)</strong> é uma biblioteca que fornece transformadores bidirecionais para dados tabulares. O CTGAN usa o <code>ClusterBasedNormalizer</code> do RDT para colunas contínuas e <code>OneHotEncoder</code> para colunas discretas. A ideia chave: o RDT torna as transformações <strong>reversíveis</strong> — você pode ir de dados reais → codificados → de volta aos dados reais com perda mínima de informação.
+    </p>
+
+    <div class="formula-box">
+      <div class="label">Função do RDT no pipeline do CTGAN</div>
+Dados Brutos → <span class="val">RDT.fit()</span> (aprender parâmetros) → <span class="val">RDT.transform()</span> (codificar) → Treinamento GAN → Geração GAN → <span class="val">RDT.inverse_transform()</span> (decodificar) → Dados Sintéticos
+    </div>
+  </section>
+
+  <!-- ═══ TRANSFORMER CATALOG ═══ -->
+  <section>
+    <h2>Catálogo de Transformadores</h2>
+
+    <div class="transformer-grid">
+      <div class="transformer-card">
+        <h4>ClusterBasedNormalizer</h4>
+        <p>Normalização baseada em GMM para dados contínuos. <strong>Transformador principal usado pelo CTGAN.</strong></p>
+        <p><span class="code-ref">rdt/transformers/numerical.py</span></p>
+      </div>
+      <div class="transformer-card">
+        <h4>OneHotEncoder</h4>
+        <p>Codificação one-hot para colunas categóricas/discretas. Usado para status, account_type, etc.</p>
+        <p><span class="code-ref">rdt/transformers/categorical.py</span></p>
+      </div>
+      <div class="transformer-card">
+        <h4>GaussianNormalizer</h4>
+        <p>Normalização baseada em cópula. Alternativa ao ClusterBasedNormalizer (não usado por padrão).</p>
+        <p><span class="code-ref">rdt/transformers/numerical.py</span></p>
+      </div>
+      <div class="transformer-card">
+        <h4>NullTransformer</h4>
+        <p>Lida com valores ausentes. Cria colunas indicadoras ou preenche com valores aleatórios/médios.</p>
+        <p><span class="code-ref">rdt/transformers/null.py</span></p>
+      </div>
+      <div class="transformer-card">
+        <h4>FloatFormatter</h4>
+        <p>Transformador base para dados numéricos. Lida com dtype, arredondamento, imposição de min/máx.</p>
+        <p><span class="code-ref">rdt/transformers/numerical.py</span></p>
+      </div>
+      <div class="transformer-card">
+        <h4>LogitScaler</h4>
+        <p>Transformação logit/sigmoid para dados numéricos limitados. Usado em cenários especializados.</p>
+        <p><span class="code-ref">rdt/transformers/numerical.py</span></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- ClusterBasedNormalizer                                  -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>ClusterBasedNormalizer — O Transformador Principal</h2>
+
+    <div class="step open" id="s-cbn-overview">
+      <div class="step-header" onclick="tog('s-cbn-overview')">
+        <span class="num">1</span>
+        <span>Arquitetura e Parâmetros</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/numerical.py — ClusterBasedNormalizer
+class ClusterBasedNormalizer(FloatFormatter):
+    """Transformer for numerical data using a Bayesian Gaussian Mixture Model.
+
+    This transformation takes a numerical value and transforms it using a Bayesian GMM
+    model. It generates two outputs:
+    1. A discrete value indicating the selected 'component' of the GMM
+    2. A continuous value representing the normalized value based on mean and std
+    """
+
+    STD_MULTIPLIER = 4  # ← CONSTANTE CHAVE: ±4σ cobre 99.99% da distribuição normal
+    _bgm_transformer = None
+    valid_component_indicator = None
+
+    def __init__(
+        self,
+        model_missing_values=None,
+        learn_rounding_scheme=False,
+        enforce_min_max_values=False,
+        max_clusters=10,           # ← máx de componentes GMM
+        weight_threshold=0.005,    # ← poda modos com peso < 0.5%
+        missing_value_generation='random',
+    ):</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Parâmetros Principais</div>
+<strong>max_clusters=10:</strong> Número máximo de componentes GMM. O BayesianGMM pode usar menos.<br>
+<strong>weight_threshold=0.005:</strong> Componentes com peso &lt; 0.5% são podados.<br>
+<strong>STD_MULTIPLIER=4:</strong> A normalização usa 4σ (não 1σ), então 99.99% dos valores ficam em [-1, 1].<br>
+<strong>missing_value_generation='random':</strong> Preenche NaN com valores aleatórios no range dos dados.
+        </div>
+      </div>
+    </div>
+
+    <div class="step open" id="s-cbn-fit">
+      <div class="step-header" onclick="tog('s-cbn-fit')">
+        <span class="num">2</span>
+        <span><code>_fit()</code> — Ajuste do GMM Bayesiano</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/numerical.py — _fit()
+def _fit(self, data):
+    sm = import_module('sklearn.mixture')
+
+    self._bgm_transformer = sm.BayesianGaussianMixture(
+        n_components=self.max_clusters,           # 10
+        weight_concentration_prior_type='dirichlet_process',
+        weight_concentration_prior=0.001,         # ← Prior Dirichlet (esparso)
+        random_state=self._get_current_random_seed(),
+    )
+
+    super()._fit(data)                              # FloatFormatter._fit
+    data = super()._transform(data)                 # FloatFormatter._transform
+    if data.ndim > 1:
+        data = data[:, 0]                           # extrai coluna numérica
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        self._bgm_transformer.fit(data.reshape(-1, 1))  # ajusta GMM na coluna
+
+    # Poda de modos com peso < threshold
+    self.valid_component_indicator = (
+        self._bgm_transformer.weights_ > self.weight_threshold
+    )</code></pre>
+
+        <div class="formula-box">
+          <div class="label">O que o BayesianGaussianMixture faz internamente</div>
+<strong>1. Prior de Processo de Dirichlet:</strong><br>
+&nbsp;&nbsp;weight_concentration_prior=0.001 significa que o modelo prefere fortemente menos componentes.<br>
+&nbsp;&nbsp;É por isso que 10 componentes podem encolher para 2-3 após o ajuste.<br><br>
+<strong>2. Algoritmo EM (Expectation-Maximization):</strong><br>
+&nbsp;&nbsp;E-step: Calcula responsabilidades r(i,k) = P(componente=k | xᵢ)<br>
+&nbsp;&nbsp;M-step: Atualiza μₖ, Σₖ, πₖ usando estatísticas ponderadas<br>
+&nbsp;&nbsp;Repete até convergência<br><br>
+<strong>3. Poda:</strong><br>
+&nbsp;&nbsp;Após o ajuste, modos com πₖ &lt; 0.005 são marcados como inválidos.<br>
+&nbsp;&nbsp;Apenas modos válidos são usados para normalização.
+        </div>
+      </div>
+    </div>
+
+    <div class="step open" id="s-cbn-transform">
+      <div class="step-header" onclick="tog('s-cbn-transform')">
+        <span class="num">3</span>
+        <span><code>_transform()</code> — Seleção de Modo + Normalização</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/numerical.py — _transform()
+def _transform(self, data):
+    data = super()._transform(data)          # lida com nulos
+    if data.ndim > 1:
+        data, model_missing_values = data[:, 0], data[:, 1]
+
+    data = data.reshape((len(data), 1))      # (n, 1)
+
+    # Obtém parâmetros dos modos
+    means = self._bgm_transformer.means_.reshape((1, self.max_clusters))
+    means = means[:, self.valid_component_indicator]     # (1, n_modos_válidos)
+    stds = np.sqrt(self._bgm_transformer.covariances_).reshape((1, self.max_clusters))
+    stds = stds[:, self.valid_component_indicator]       # (1, n_modos_válidos)
+
+    # ── NORMALIZAÇÃO ──
+    # Multiplica stds por 4 para que o valor fique em [-1,1] com 99.99% de probabilidade
+    normalized_values = (data - means) / (self.STD_MULTIPLIER * stds)
+
+    # ── SELEÇÃO DE MODO ──
+    component_probs = self._bgm_transformer.predict_proba(data)
+    component_probs = component_probs[:, self.valid_component_indicator]
+
+    selected_component = np.zeros(len(data), dtype='int')
+    for i in range(len(data)):
+        component_prob_t = component_probs[i] + 1e-6          # evita divisão por zero
+        component_prob_t = component_prob_t / component_prob_t.sum()  # normaliza
+        selected_component[i] = np.random.choice(
+            np.arange(self.valid_component_indicator.sum()),
+            p=component_prob_t,                                # amostra das probabilidades
+        )
+
+    # Extrai valor normalizado para o modo selecionado
+    aranged = np.arange(len(data))
+    normalized = normalized_values[aranged, selected_component].reshape([-1, 1])
+    normalized = np.clip(normalized, -0.99, 0.99)             # recorta para range seguro
+
+    return np.stack([normalized[:, 0], selected_component], axis=1)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Formulação matemática — Artigo § 4.2</div>
+<strong>Dados:</strong> valor c, modo k com parâmetros (μₖ, ϕₖ)<br><br>
+<strong>Transformação direta:</strong><br>
+α = (c − μₖ) / (4 × ϕₖ)<br>
+&nbsp;&nbsp;onde 4 × ϕₖ garante que α ∈ [-1, 1] com 99.99% de probabilidade<br><br>
+<strong>Seleção de modo (probabilística):</strong><br>
+P(C=k | c) = πₖ × N(c; μₖ, ϕₖ) / Σⱼ πⱼ × N(c; μⱼ, ϕⱼ)<br>
+selected_component ~ Categorical(P(C|c))<br><br>
+<strong>Saída:</strong> [α, selected_component] por linha
+        </div>
+
+        <h4>Por que seleção probabilística de modo?</h4>
+        <p>
+          Em vez de atribuição dura (argmax), o RDT amostra da distribuição de probabilidade. Isso adiciona estocasticidade que ajuda o GAN a aprender transições entre modos. Um valor próximo à fronteira entre dois modos será atribuído aleatoriamente a um deles.
+        </p>
+      </div>
+    </div>
+
+    <div class="step open" id="s-cbn-inverse">
+      <div class="step-header" onclick="tog('s-cbn-inverse')">
+        <span class="num">4</span>
+        <span><code>_reverse_transform_helper()</code> — Mapeamento Inverso</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/numerical.py — _reverse_transform_helper()
+def _reverse_transform_helper(self, data):
+    normalized = np.clip(data[:, 0], -1, 1)          # α ∈ [-1, 1]
+
+    means = self._bgm_transformer.means_.reshape([-1])
+    stds = np.sqrt(self._bgm_transformer.covariances_).reshape([-1])
+
+    selected_component = data[:, 1].round().astype(int)    # índice do modo discreto
+    selected_component = selected_component.clip(
+        0, self.valid_component_indicator.sum() - 1         # garante range válido
+    )
+
+    std_t = stds[self.valid_component_indicator][selected_component]
+    mean_t = means[self.valid_component_indicator][selected_component]
+
+    # ── NORMALIZAÇÃO INVERSA ──
+    reversed_data = normalized * self.STD_MULTIPLIER * std_t + mean_t
+    # α × 4 × ϕₖ + μₖ = valor original
+
+    return reversed_data</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Fórmula da transformação inversa</div>
+<strong>Dados:</strong> α (normalizado), modo k<br><br>
+c = α × 4 × ϕₖ + μₖ<br><br>
+<strong>Exemplo:</strong><br>
+α = 0.711, modo 0 (μ₀=1935, ϕ₀=2345)<br>
+c = 0.711 × 4 × 2345 + 1935<br>
+c = 0.711 × 9380 + 1935<br>
+c = 6669.18 + 1935 = <span class="val">8.604</span>
+        </div>
+
+        <h4>Comportamento de clipping</h4>
+        <p>
+          O α de entrada é cortado para [-1, 1]. Isso significa que valores gerados fora do range de treino são limitados. Por exemplo, se o range de treino do balance era [-230, 67200], um α = 1.2 seria cortado para 1.0, produzindo o valor máximo possível.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- GaussianNormalizer                                       -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>GaussianNormalizer — Transformador Alternativo</h2>
+
+    <div class="step" id="s-gn-overview">
+      <div class="step-header" onclick="tog('s-gn-overview')">
+        <span class="num">5</span>
+        <span>Normalização baseada em Cópula (CDF + Inversa CDF)</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+        <div class="formula-box">
+          <div class="label">Artigo § 3.3 — Transformação de cópula</div>
+Dada uma variável x:<br>
+1. Encontrar a melhor distribuição marginal: P(x)<br>
+2. Calcular: u = Φ(x) onde Φ é a CDF de P(x)<br>
+3. Calcular: z = Φ⁻¹_N(0,1)(u) onde Φ⁻¹ é a inversa CDF da normal padrão<br><br>
+<strong>Resultado:</strong> z ~ N(0, 1) independentemente da distribuição original
+        </div>
+
+<pre><code># rdt/transformers/numerical.py — GaussianNormalizer
+class GaussianNormalizer(FloatFormatter):
+    """Transformer for numerical data based on copulas transformation.
+
+    Transformation consists on bringing the input data to a standard normal space
+    by using a combination of *cdf* and *inverse cdf* transformations.
+    """
+
+    def _copula_transform(self, data):
+        cdf = self._univariate.cdf(data)          # P(x) → u ∈ [0, 1]
+        return scipy.stats.norm.ppf(
+            cdf.clip(0 + EPSILON, 1 - EPSILON)    # recorta para evitar ±inf
+        )                                          # Φ⁻¹(u) → z ~ N(0,1)
+
+    def _reverse_transform(self, data):
+        if data.ndim > 1:
+            data[:, 0] = self._univariate.ppf(    # Φ⁻¹ da marginal
+                scipy.stats.norm.cdf(data[:, 0])   # Φ da normal padrão → u
+            )                                      # u → escala original
+        else:
+            data = self._univariate.ppf(
+                scipy.stats.norm.cdf(data)
+            )
+        return super()._reverse_transform(data)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Exemplo numérico passo a passo</div>
+Dado: x = 12.450 com TruncatedNormal ajustada(μ=20000, σ=15000)<br><br>
+Passo 1: u = Φ_TruncNorm(12450) = 0.32 (CDF da normal truncada)<br>
+Passo 2: z = Φ⁻¹_N(0,1)(0.32) = -0.468 (inversa CDF da normal padrão)<br><br>
+<strong>Inversa:</strong><br>
+Passo 1: u = Φ_N(0,1)(-0.468) = 0.32<br>
+Passo 2: x = Φ⁻¹_TruncNorm(0.32) = 12.450
+        </div>
+
+        <h4>Distribuições disponíveis</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Distribuição</th><th>Classe</th><th>Caso de Uso</th></tr></thead>
+            <tbody>
+              <tr><td><code>norm</code></td><td>GaussianUnivariate</td><td>Dados em formato de sino, simétricos</td></tr>
+              <tr><td><code>truncnorm</code></td><td>TruncatedGaussian</td><td><strong>Padrão.</strong> Dados limitados</td></tr>
+              <tr><td><code>gamma</code></td><td>GammaUnivariate</td><td>Dados positivos, com cauda à direita</td></tr>
+              <tr><td><code>beta</code></td><td>BetaUnivariate</td><td>Dados no range [0, 1]</td></tr>
+              <tr><td><code>t</code></td><td>StudentTUnivariate</td><td>Dados com caudas pesadas</td></tr>
+              <tr><td><code>gaussian_kde</code></td><td>GaussianKDE</td><td>Não-paramétrico (flexível)</td></tr>
+              <tr><td><code>uniform</code></td><td>UniformUnivariate</td><td>Distribuição uniforme</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- OneHotEncoder                                           -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>OneHotEncoder — Colunas Discretas</h2>
+
+    <div class="step open" id="s-ohe">
+      <div class="step-header" onclick="tog('s-ohe')">
+        <span class="num">6</span>
+        <span>OneHotEncoder para CTGAN</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/categorical.py — OneHotEncoder
+class OneHotEncoder(BaseTransformer):
+    """OneHotEncoding for categorical data.
+
+    This transformer replaces a single vector with N unique categories
+    with N vectors which have 1s on the rows where the corresponding
+    category is found and 0s on the rest.
+    """
+
+    def _fit(self, data):
+        self.dtype = data.dtype
+        data = self._prepare_data(data)
+
+        null = pd.isna(data).to_numpy()
+        self._uniques = list(pd.unique(data[~null]))     # ex: ['Checking', 'Savings']
+        self._dummy_na = null.any()                       # True se houver NaN
+        self._num_dummies = len(self._uniques)            # 2
+        self._indexer = list(range(self._num_dummies))
+        self.dummies = self._uniques.copy()
+
+        if not np.issubdtype(data.dtype.type, np.number):
+            self._dummy_encoded = True                    # categorias string
+
+        if self._dummy_na:
+            self.dummies.append(np.nan)                   # NaN recebe sua própria coluna
+
+    def _transform_helper(self, data):
+        if self._dummy_encoded:
+            coder = self._indexer                          # [0, 1]
+            codes = pd.Categorical(data, categories=self._uniques).codes
+        else:
+            coder = self._uniques
+            codes = data
+
+        rows = len(data)
+        dummies = np.broadcast_to(coder, (rows, self._num_dummies))
+        coded = np.broadcast_to(codes, (self._num_dummies, rows)).T
+        array = (coded == dummies).astype(int)             # matriz one-hot
+
+        if self._dummy_na:
+            null = np.zeros((rows, 1), dtype=int)
+            null[pd.isna(data)] = 1
+            array = np.append(array, null, axis=1)
+
+        return array
+
+    def _reverse_transform(self, data):
+        indices = np.argmax(data, axis=1)                 # seleciona coluna com valor máx
+        result = pd.Series(indices).map(self.dummies.__getitem__)
+        return result</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Exemplo de transformação OneHot — coluna status</div>
+Entrada: ["Active", "Overdrawn", "Active", "Active", "Frozen"]<br>
+Unicos: ["Active", "Overdrawn", "Frozen"]<br><br>
+Transformação (broadcasting numpy):<br>
+coder = [0, 1, 2]<br>
+codes = [0, 1, 0, 0, 2]<br><br>
+dummies (broadcast):<br>
+[[0, 0, 0],   coded (broadcast):<br>
+ [0, 0, 0],   [[0, 0, 0],<br>
+ [0, 0, 0],    [1, 1, 1],<br>
+ [0, 0, 0],    [0, 0, 0],<br>
+ [0, 0, 0]]    [0, 0, 0],<br>
+               [2, 2, 2]]<br><br>
+array = (coded == dummies).astype(int):<br>
+[[1, 0, 0],  ← Active<br>
+ [0, 1, 0],  ← Overdrawn<br>
+ [1, 0, 0],  ← Active<br>
+ [1, 0, 0],  ← Active<br>
+ [0, 0, 1]]  ← Frozen
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- NullTransformer                                         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>NullTransformer — Tratamento de Valores Ausentes</h2>
+
+    <div class="step open" id="s-null">
+      <div class="step-header" onclick="tog('s-null')">
+        <span class="num">7</span>
+        <span>Três estratégias para valores ausentes</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/null.py — NullTransformer
+class NullTransformer:
+    """Transformer for data that contains Null values.
+
+    Args:
+        missing_value_replacement: 'mean' | 'mode' | 'random' | float | None
+        missing_value_generation: 'random' | 'from_column' | None
+    """
+
+    def fit(self, data):
+        self._missing_value_replacement = self._get_missing_value_replacement(data)
+        if self._missing_value_replacement == 'random':
+            self._min_value = data.min()
+            self._max_value = data.max()
+
+        if self._missing_value_generation is not None:
+            null_values = data.isna().to_numpy()
+            self.nulls = null_values.any()
+            if self._missing_value_generation == 'random':
+                self._null_percentage = null_values.sum() / len(data)
+
+    def transform(self, data):
+        isna = data.isna()
+        if self._missing_value_replacement == 'random':
+            # Preenche NaN com valores aleatórios no range [min, max]
+            data_mask = list(
+                np.random.uniform(low=self._min_value, high=self._max_value, size=len(data))
+            )
+            data = data.mask(data.isna(), data_mask)
+        elif isna.any() and self._missing_value_replacement is not None:
+            data = data.infer_objects().fillna(self._missing_value_replacement)
+
+        if self._missing_value_generation == 'from_column':
+            return pd.concat([data, isna.astype(np.float64)], axis=1).to_numpy()
+        return data.to_numpy()
+
+    def reverse_transform(self, data):
+        data = data.copy()
+        if self._missing_value_generation == 'from_column':
+            if self.nulls:
+                isna = data[:, 1] > 0.5              # threshold na coluna indicadora
+            data = data[:, 0]
+        elif self.nulls:
+            isna = np.random.random((len(data),)) < self._null_percentage
+
+        data = pd.Series(data)
+        if self.nulls and isna.any():
+            data.loc[isna] = np.nan
+        return data</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Comparação de estratégias para valores ausentes</div>
+<strong>'random':</strong> Preenche NaN com aleatório uniforme(data.min, data.max). Inversa: aleatoriamente restaura NaN com a mesma porcentagem.<br>
+<strong>'from_column':</strong> Cria coluna indicadora binária. Inversa: onde indicador > 0.5, define NaN.<br>
+<strong>None:</strong> Sem tratamento. Inversa: passa direto (dados podem conter NaN).
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Estratégia</th><th>Transformação</th><th>Inversa</th><th>Perda Info</th></tr></thead>
+            <tbody>
+              <tr><td><code>'random'</code></td><td>Preenche com aleatório no range</td><td>Aleatoriamente restaura NaN</td><td>Média</td></tr>
+              <tr><td><code>'from_column'</code></td><td>Adiciona coluna binária</td><td>Usa coluna > 0.5 como máscara</td><td>Baixa</td></tr>
+              <tr><td><code>None</code></td><td>Passa direto</td><td>Passa direto</td><td>Nenhuma</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- FloatFormatter                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>FloatFormatter — Transformador Base</h2>
+
+    <div class="step open" id="s-ff">
+      <div class="step-header" onclick="tog('s-ff')">
+        <span class="num">8</span>
+        <span>Arredondamento, imposição de min/máx, tratamento de dtype</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/numerical.py — FloatFormatter
+class FloatFormatter(BaseTransformer):
+    """Transformer for numerical data.
+
+    This transformer replaces integer values with their float equivalent.
+    Non null float values are not modified.
+    """
+
+    def _fit(self, data):
+        self._dtype = data.dtype
+
+        if self.enforce_min_max_values:
+            self._min_value = data.min()
+            self._max_value = data.max()
+
+        if self.learn_rounding_scheme:
+            self._rounding_digits = learn_rounding_digits(data)
+
+        self.null_transformer = NullTransformer(
+            self.missing_value_replacement, self.missing_value_generation
+        )
+        self.null_transformer.fit(data)
+
+    def _reverse_transform(self, data):
+        data = self.null_transformer.reverse_transform(data)
+
+        if self.enforce_min_max_values:
+            data = data.clip(self._min_value, self._max_value)
+        elif not self.computer_representation.startswith('Float'):
+            min_bound, max_bound = INTEGER_BOUNDS[self.computer_representation]
+            data = data.clip(min_bound, max_bound)
+
+        is_integer = pd.api.types.is_integer_dtype(self._dtype)
+        if self.learn_rounding_scheme and self._rounding_digits is not None:
+            data = data.round(self._rounding_digits)
+        elif is_integer:
+            data = data.round(0)
+
+        return data.astype(self._dtype)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Algoritmo learn_rounding_digits</div>
+Entrada: série de dados<br>
+1. Encontrar o maior inteiro absoluto nos dados<br>
+2. most_digits = len(str(max_abs))<br>
+3. max_decimals = max(0, MAX_DECIMALS - most_digits)<br>
+4. Para decimal em 0..max_decimals:<br>
+&nbsp;&nbsp;se data == data.round(decimal) para todos os valores:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;retornar decimal<br>
+5. retornar None (não pode arredondar)
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- LogitScaler                                             -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>LogitScaler — Transformação Numérica Limitada</h2>
+
+    <div class="step open" id="s-logit">
+      <div class="step-header" onclick="tog('s-logit')">
+        <span class="num">9</span>
+        <span>Funções Logit e Sigmoid</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/numerical.py — LogitScaler
+class LogitScaler(FloatFormatter):
+    """Transformer for numerical data by applying a logit function.
+
+    This transformer works by replacing the values with a scaled
+    version and then applying a logit function. The reverse transform
+    applies a sigmoid to the data and then scales it back.
+    """
+
+    def __init__(self, min_value=0.0, max_value=1.0, ...):
+        self.min_value = min_value
+        self.max_value = max_value
+
+    def _transform(self, data):
+        transformed = super()._transform(data)
+        logit_vals = logit(transformed[:, 0], self.min_value, self.max_value)
+        return transformed
+
+    def _reverse_transform(self, data):
+        reversed_values = sigmoid(sampled_vals, self.min_value, self.max_value)
+        return super()._reverse_transform(reversed_values)</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Fórmulas Logit e Sigmoid <span class="code-ref">rdt/transformers/utils.py</span></div>
+<strong>Função Logit:</strong> logit(x, low, high)<br>
+1. x_scaled = (x - low) / (high - low) &nbsp;&nbsp;← normaliza para [0, 1]<br>
+2. x_scaled = x_scaled × 0.95 + 0.025 &nbsp;&nbsp;← mapeia para [0.025, 0.975] (evita ±inf)<br>
+3. resultado = ln(x_scaled / (1 - x_scaled)) &nbsp;&nbsp;← logit padrão<br><br>
+<strong>Função Sigmoid:</strong> sigmoid(x, low, high)<br>
+1. x_sigmoid = 1 / (1 + exp(-x)) &nbsp;&nbsp;← sigmoid padrão → [0, 1]<br>
+2. x_scaled = (x_sigmoid - 0.025) / 0.95 &nbsp;&nbsp;← desfaz o escalonamento 0.95<br>
+3. resultado = x_scaled × (high - low) + low &nbsp;&nbsp;← desfaz a normalização
+        </div>
+
+        <h4>Exemplo numérico</h4>
+        <div class="formula-box">
+Dado: x = 0.65, low = 0.0, high = 1.0<br><br>
+<strong>Logit:</strong><br>
+x_scaled = (0.65 - 0) / (1.0 - 0) = 0.65<br>
+x_scaled = 0.65 × 0.95 + 0.025 = 0.6425<br>
+logit = ln(0.6425 / (1 - 0.6425)) = ln(1.797) = <span class="val">0.586</span><br><br>
+<strong>Sigmoid (inversa):</strong><br>
+sigmoid = 1 / (1 + exp(-0.586)) = 1 / (1 + 0.556) = 0.6425<br>
+x_scaled = (0.6425 - 0.025) / 0.95 = 0.65<br>
+resultado = 0.65 × (1.0 - 0.0) + 0.0 = <span class="val">0.65</span> ✓
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- LogScaler                                               -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>LogScaler — Transformação Logarítmica</h2>
+
+    <div class="step" id="s-log">
+      <div class="step-header" onclick="tog('s-log')">
+        <span class="num">10</span>
+        <span>Normalização baseada em log para dados positivos/enviesados</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/numerical.py — LogScaler
+class LogScaler(FloatFormatter):
+    """Transformer for numerical data using log.
+
+    Args:
+        constant: The constant to set as the 0-value for the log. Defaults to 0.
+        invert: Whether to invert the data with respect to the constant.
+                If False: all values > constant (positive skew).
+                If True: all values < constant (negative skew).
+    """
+
+    def _log_transform(self, data):
+        if self.invert:
+            return np.log(self.constant - data)   # para enviesamento negativo
+        else:
+            return np.log(data - self.constant)    # para enviesamento positivo
+
+    def _reverse_log(self, data):
+        if self.invert:
+            return self.constant - np.exp(data)    # desfaz invert
+        else:
+            return np.exp(data) + self.constant    # desfaz</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Fórmulas da transformação log</div>
+<strong>Padrão (invert=False):</strong><br>
+transformação: y = ln(x - constante)<br>
+inversa: x = exp(y) + constante<br><br>
+<strong>Invertida (invert=True):</strong><br>
+transformação: y = ln(constante - x)<br>
+inversa: x = constante - exp(y)<br><br>
+<strong>Exemplo:</strong> constante=0, x=100<br>
+y = ln(100) = 4.605<br>
+x = exp(4.605) = 100 ✓
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow-connector">⬇</div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Random State Management                                 -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>Gerenciamento de Estado Aleatório</h2>
+
+    <div class="step" id="s-rng">
+      <div class="step-header" onclick="tog('s-rng')">
+        <span class="num">11</span>
+        <span>Reprodutibilidade Determinística no RDT</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># rdt/transformers/base.py — gerenciamento de estado aleatório
+class BaseTransformer:
+    INITIAL_FIT_STATE = np.random.RandomState(42)
+
+    def _set_seed(self, data):
+        # Semente baseada no nome da coluna + primeiros 5 valores (determinístico!)
+        hash_value = self.columns[0]
+        for _, row in data.head(5).iterrows():
+            hash_value += str(row[self.columns[0]])
+
+        hash_value = int(hashlib.sha256(hash_value.encode('utf-8')).hexdigest(), 16)
+        self.random_seed = hash_value % ((2**32) - 1)
+        self.random_states = {
+            'fit': self.INITIAL_FIT_STATE,
+            'transform': np.random.RandomState(self.random_seed),
+            'reverse_transform': np.random.RandomState(self.random_seed + 1),
+        }</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Como as sementes funcionam</div>
+1. Nome da coluna + primeiros 5 valores → hash SHA-256 → semente<br>
+2. Isso garante que a mesma coluna sempre recebe a mesma semente<br>
+3. Sementes separadas para fit/transform/reverse_transform<br>
+4. Permite transformações reproduzíveis mesmo com aleatoriedade
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- CTGAN's usage of RDT                                    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>Como o CTGAN Usa o RDT</h2>
+
+    <div class="step open" id="s-ctgan-rdt">
+      <div class="step-header" onclick="tog('s-ctgan-rdt')">
+        <span class="num">12</span>
+        <span>DataTransformer — orquestrando transformações RDT</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># ctgan/data_transformer.py — DataTransformer
+class DataTransformer:
+    """Transformers are fitted to the data and used to transform it."""
+
+    def fit(self, data, discrete_columns):
+        self._column_transform_info_list = []
+
+        for column_name in data.columns:
+            if column_name in discrete_columns:
+                # ── DISCRETO: OneHotEncoder ──
+                ht = OneHotEncoder()
+                ht.fit(data, column_name)
+                info = ColumnTransformInfo(
+                    column_name=column_name,
+                    column_type='discrete',
+                    transform=ht,
+                    output_info=[SpanInfo(ht._num_dummies, 'softmax')],
+                    output_dimensions=ht._num_dummies,
+                )
+            else:
+                # ── CONTÍNUO: ClusterBasedNormalizer ──
+                gm = ClusterBasedNormalizer(
+                    missing_value_generation='from_column',
+                    max_clusters=min(len(data), self._max_clusters),
+                    weight_threshold=self._weight_threshold,
+                )
+                gm.fit(data, column_name)
+                num_components = sum(gm.valid_component_indicator)
+                info = ColumnTransformInfo(
+                    column_name=column_name,
+                    column_type='continuous',
+                    transform=gm,
+                    output_info=[
+                        SpanInfo(1, 'tanh'),                        # α escalar
+                        SpanInfo(num_components, 'softmax'),         # one-hot do modo
+                    ],
+                    output_dimensions=1 + num_components,
+                )
+
+            self._column_transform_info_list.append(info)
+
+        self.output_dimensions = sum(
+            info.output_dimensions for info in self._column_transform_info_list
+        )</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Lógica de seleção de transformação RDT</div>
+<strong>Coluna contínua:</strong><br>
+&nbsp;&nbsp;Transformador: ClusterBasedNormalizer<br>
+&nbsp;&nbsp;Saída: [α (tanh), β₀ (softmax), β₁ (softmax), ...]<br>
+&nbsp;&nbsp;Dimensões: 1 + n_modos_válidos<br><br>
+<strong>Coluna discreta:</strong><br>
+&nbsp;&nbsp;Transformador: OneHotEncoder<br>
+&nbsp;&nbsp;Saída: [vetor one-hot]<br>
+&nbsp;&nbsp;Dimensões: n_categorias
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="s-rdt-inverse">
+      <div class="step-header" onclick="tog('s-rdt-inverse')">
+        <span class="num">13</span>
+        <span>inverse_transform() — decodificando dados sintéticos</span>
+        <span class="arrow">▸</span>
+      </div>
+      <div class="step-body">
+
+<pre><code># ctgan/data_transformer.py — inverse_transform()
+def inverse_transform(self, data, sigmas=None):
+    """Convert transformed data back to original format."""
+    st = 0
+    recovered = []
+
+    for column_transform_info in self._column_transform_info_list:
+        dim = column_transform_info.output_dimensions
+        column_data = data[:, st:st+dim]
+
+        if column_transform_info.column_type == 'continuous':
+            recovered.append(
+                self._inverse_transform_continuous(column_transform_info, column_data, sigmas, st)
+            )
+        else:
+            recovered.append(
+                self._inverse_transform_discrete(column_transform_info, column_data)
+            )
+        st += dim
+
+    return np.column_stack(recovered)
+
+def _inverse_transform_continuous(self, column_transform_info, column_data, sigmas, st):
+    gm = column_transform_info.transform
+    data = pd.DataFrame(
+        column_data[:, :2],
+        columns=['normalized', 'component']
+    ).astype(float)
+    data['component'] = np.argmax(column_data[:, 1:], axis=1)  # one-hot → índice
+
+    # Opcional: adiciona ruído para diversidade
+    if sigmas is not None:
+        mean = np.zeros(len(data))
+        std = sigmas + st
+        mean = mean + std
+        noise = np.random.normal(mean)
+        data['normalized'] += noise
+
+    return gm.reverse_transform(data)
+
+def _inverse_transform_discrete(self, column_transform_info, column_data):
+    ohe = column_transform_info.transform
+    data = pd.DataFrame(column_data, columns=list(ohe.get_output_sdtypes()))
+    return ohe.reverse_transform(data)[column_transform_info.column_name]</code></pre>
+
+        <div class="formula-box">
+          <div class="label">Fluxo completo do inverse_transform</div>
+Para cada coluna em output_info_list:<br>
+&nbsp;&nbsp;se contínua:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. Extrair [α, β₀, β₁, ...] da saída sintética<br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. argmax(β₀, β₁, ...) → modo_selecionado<br>
+&nbsp;&nbsp;&nbsp;&nbsp;3. gm.reverse_transform([α, modo_selecionado])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ c = α × 4 × ϕₖ + μₖ<br>
+&nbsp;&nbsp;&nbsp;&nbsp;4. Aplicar arredondamento se learn_rounding_scheme=True<br>
+&nbsp;&nbsp;&nbsp;&nbsp;5. Recortar para [min_value, max_value] se enforce_min_max_values=True<br><br>
+&nbsp;&nbsp;se discreta:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. argmax(vetor_one_hot) → índice_da_categoria<br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. categorias[índice_da_categoria] → string da categoria original
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- MATHEMATICAL SUMMARY                                    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section>
+    <h2>Resumo Matemático</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Operação</th><th>Fórmula</th><th>Range</th><th>Usado Por</th></tr></thead>
+        <tbody>
+          <tr><td>Normalização GMM</td><td>α = (c − μₖ) / (4ϕₖ)</td><td>[-1, 1]</td><td>ClusterBasedNormalizer</td></tr>
+          <tr><td>Inversa GMM</td><td>c = α × 4ϕₖ + μₖ</td><td>ℝ</td><td>ClusterBasedNormalizer</td></tr>
+          <tr><td>Probabilidade do Modo</td><td>P(k|c) = πₖN(c;μₖ,ϕₖ) / ΣⱼπⱼN(c;μⱼ,ϕⱼ)</td><td>[0,1]</td><td>ClusterBasedNormalizer</td></tr>
+          <tr><td>CDF Cópula</td><td>u = Φ_dist(x)</td><td>[0, 1]</td><td>GaussianNormalizer</td></tr>
+          <tr><td>Normal Padrão</td><td>z = Φ⁻¹_N(0,1)(u)</td><td>ℝ</td><td>GaussianNormalizer</td></tr>
+          <tr><td>Logit</td><td>ln(x/(1-x))</td><td>ℝ</td><td>LogitScaler</td></tr>
+          <tr><td>Sigmoid</td><td>1/(1+exp(-x))</td><td>[0,1]</td><td>LogitScaler</td></tr>
+          <tr><td>Transformação Log</td><td>ln(x − c)</td><td>ℝ</td><td>LogScaler</td></tr>
+          <tr><td>Codificação OneHot</td><td>δ(i == j)</td><td>{0,1}</td><td>OneHotEncoder</td></tr>
+          <tr><td>Decodificação OneHot</td><td>argmax(v)</td><td>{0..N}</td><td>OneHotEncoder</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="callout">
+    <p>
+      <strong>Insight Principal:</strong> O RDT é a ponte entre dados tabulares brutos e tensores compatíveis com GAN. O ClusterBasedNormalizer usa GMM + normalização 4σ para mapear qualquer distribuição para [-1, 1], enquanto o OneHotEncoder lida com colunas discretas. A reversibilidade dessas transformações é o que torna os dados sintéticos do CTGAN tão realistas.
+    </p>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; margin-top:3rem; padding-top:1.5rem; border-top:2px solid var(--border);">
+    <a href="ctgan-documentation.html" style="color:var(--accent); text-decoration:none; font-weight:600; font-size:.88rem;">← Documentação</a>
+    <a href="ctgan-simulation.html" style="color:var(--accent); text-decoration:none; font-weight:600; font-size:.88rem;">← Simulação</a>
+    <a href="https://github.com/sdv-dev/RDT/blob/main/rdt/transformers/numerical.py" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:none; font-weight:600; font-size:.88rem;">Fonte RDT ↗</a>
+  </div>
+
+  <footer>
+    <p>Aprofundamento RDT para <a href="https://github.com/sdv-dev/CTGAN">CTGAN</a></p>
+  </footer>
+</div>
+
+<script>
+function tog(id) { document.getElementById(id).classList.toggle('open'); }
+</script>
+</body>
+</html>
