@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTGAN — Differential Privacy: Implementação</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#fff; --fg:#1a1a2e; --muted:#64748b; --accent:#2563eb; --accent-bg:#eff6ff;
+      --border:#e2e8f0; --code-bg:#f8fafc; --tag-bg:#f1f5f9; --radius:8px; --max-w:820px;
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono','Fira Code','Consolas',monospace;
+      --success:#16a34a; --success-bg:#f0fdf4; --warning:#d97706; --warning-bg:#fffbeb;
+      --danger:#dc2626; --danger-bg:#fef2f2;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--font-sans); background:var(--bg); color:var(--fg); line-height:1.75; font-size:16px; }
+    .wrapper { max-width:var(--max-w); margin:0 auto; padding:3rem 1.5rem 6rem; }
+    header { margin-bottom:3rem; padding-top:.5rem; }
+    header h1 { font-size:2.5rem; font-weight:800; letter-spacing:-.03em; margin-bottom:.5rem; }
+    header .subtitle { color:var(--muted); font-size:1.05rem; margin-bottom:1.5rem; }
+    .tag { display:inline-block; padding:.2em .7em; font-size:.8rem; font-weight:600; border-radius:999px; background:var(--tag-bg); color:var(--muted); }
+    .tag.accent { background:var(--accent-bg); color:var(--accent); }
+    .tag.success { background:var(--success-bg); color:var(--success); }
+    .tag.warning { background:var(--warning-bg); color:var(--warning); }
+    .tag.danger { background:var(--danger-bg); color:var(--danger); }
+    nav.toc { position:fixed; top:3rem; right:max(1rem,calc((100vw - var(--max-w))/2 - 240px)); width:220px; font-size:.82rem; display:none; }
+    @media(min-width:1200px){ nav.toc{display:block;} }
+    nav.toc a { display:block; padding:.25em 0; color:var(--muted); text-decoration:none; border-left:2px solid transparent; padding-left:.75rem; transition:all .15s; }
+    nav.toc a:hover, nav.toc a.active { color:var(--accent); border-left-color:var(--accent); }
+    section { margin-bottom:3.5rem; }
+    h2 { font-size:1.6rem; font-weight:700; margin-bottom:1rem; padding-bottom:.4rem; border-bottom:2px solid var(--border); letter-spacing:-.02em; }
+    h3 { font-size:1.15rem; font-weight:600; margin:1.8rem 0 .6rem; color:var(--fg); }
+    p { margin-bottom:1rem; }
+    .code-block { position:relative; margin:1.25rem 0; }
+    .code-block header { display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; border:1px solid var(--border); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; padding:.4rem 1rem; font-size:.78rem; font-weight:600; color:var(--muted); margin:0; }
+    .code-block header .file { font-family:var(--font-mono); font-weight:700; }
+    pre { background:var(--code-bg); border:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); padding:1rem 1.25rem; overflow-x:auto; font-size:.82rem; line-height:1.6; font-family:var(--font-mono); tab-size:4; }
+    code { background:var(--tag-bg); padding:.15em .4em; border-radius:4px; font-size:.88em; font-family:var(--font-mono); }
+    .table-wrap { overflow-x:auto; margin:1.25rem 0; border-radius:var(--radius); border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:.88rem; }
+    th,td { padding:.6rem 1rem; text-align:left; border-bottom:1px solid var(--border); }
+    th { background:var(--tag-bg); font-weight:700; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--accent-bg); }
+    td.highlight { font-weight:700; color:var(--accent); }
+    details { margin:1rem 0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    summary { padding:.75rem 1rem; background:var(--tag-bg); cursor:pointer; font-weight:600; font-size:.9rem; list-style:none; display:flex; align-items:center; gap:.5rem; user-select:none; }
+    summary::before { content:'▸'; transition:transform .15s; }
+    details[open] summary::before { transform:rotate(90deg); }
+    summary::-webkit-details-marker { display:none; }
+    details .detail-body { padding:1rem; }
+    .callout { padding:1rem 1.25rem; border-radius:var(--radius); margin:1.25rem 0; font-size:.92rem; line-height:1.6; }
+    .callout.info { background:var(--accent-bg); border-left:4px solid var(--accent); }
+    .callout.warning { background:var(--warning-bg); border-left:4px solid var(--warning); }
+    .callout.danger { background:var(--danger-bg); border-left:4px solid var(--danger); }
+    .callout.success { background:var(--success-bg); border-left:4px solid var(--success); }
+    .callout strong { font-weight:700; }
+    .metric-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin:1.5rem 0; }
+    .metric-card { border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; text-align:center; }
+    .metric-card .value { font-size:2rem; font-weight:800; color:var(--accent); line-height:1; }
+    .metric-card .label { font-size:.78rem; color:var(--muted); margin-top:.4rem; text-transform:uppercase; letter-spacing:.04em; }
+    .option-card { border:2px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin:1rem 0; }
+    .option-card.recommended { border-color:var(--success); background:var(--success-bg); }
+    .option-card h4 { font-size:1.1rem; font-weight:700; margin-bottom:.5rem; display:flex; align-items:center; gap:.5rem; }
+    .option-card .badge { display:inline-block; padding:.15em .5em; font-size:.7rem; font-weight:700; border-radius:999px; }
+    .option-card .badge.rec { background:var(--success); color:#fff; }
+    .option-card .badge.alt { background:var(--accent); color:#fff; }
+    .nav-arrows { display:flex; justify-content:space-between; margin-top:3rem; padding-top:1.5rem; border-top:2px solid var(--border); }
+    .nav-arrows a { color:var(--accent); text-decoration:none; font-weight:600; font-size:.9rem; }
+    .nav-arrows a:hover { text-decoration:underline; }
+    footer { margin-top:4rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--muted); font-size:.82rem; text-align:center; }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+    @media(max-width:768px) {
+      header h1 { font-size:1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="toc" id="toc">
+  <a href="#resumo">Resumo</a>
+  <a href="#dpsdg">dpsdg</a>
+  <a href="#opacus">Opacus</a>
+  <a href="#comparacao">Comparação</a>
+  <a href="#parametros">Parâmetros</a>
+  <a href="#exemplos">Exemplos</a>
+  <a href="#impacto">Impacto</a>
+  <a href="#integracao">Integração</a>
+</nav>
+
+<div class="wrapper">
+
+  <header id="top">
+    <h1>Differential Privacy</h1>
+    <p class="subtitle">Implementação de DP em CTGAN e TVAE — Guia Completo</p>
+    <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem;">
+      <span class="tag danger">Privacidade</span>
+      <span class="tag accent">Differential Privacy</span>
+      <span class="tag">DP-SGD</span>
+      <span class="tag">PATE</span>
+      <a href="ctgan-privacidade.html" class="tag accent" style="text-decoration:none;">← Privacidade</a>
+    </div>
+  </header>
+
+  <section id="resumo">
+    <h2>Resumo Executivo</h2>
+    <p>
+      Differential Privacy (DP) é a única garantia matemática de privacidade para modelos generativos. Existem duas abordagens principais para implementar DP em CTGAN/TVAE:
+    </p>
+
+    <div class="option-card recommended">
+      <h4><span class="badge rec">RECOMENDADA</span> dpsdg</h4>
+      <p>Biblioteca pronta para uso com DP-CTGAN e DP-TVAE. API quase idêntica ao CTGAN original.</p>
+      <div style="font-size:.85rem; color:var(--muted);">
+        <strong>GitHub:</strong> <a href="https://github.com/brains-group/dpsdg" target="_blank">brains-group/dpsdg</a>
+      </div>
+    </div>
+
+    <div class="option-card">
+      <h4><span class="badge alt">ALTERNATIVA</span> Opacus</h4>
+      <p>Biblioteca PyTorch para DP-SGD manual. Mais flexível, mas requer mais trabalho de integração.</p>
+      <div style="font-size:.85rem; color:var(--muted);">
+        <strong>GitHub:</strong> <a href="https://github.com/meta-pytorch/opacus" target="_blank">meta-pytorch/opacus</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- DPSDG -->
+  <section id="dpsdg">
+    <h2>Opção 1: dpsdg (Recomendada)</h2>
+
+    <h3>O que é</h3>
+    <p>
+      Implementação oficial de DP-CTGAN e DP-TVAE que estende a biblioteca CTGAN com treinamento diferencialmente privado via DP-SGD. A API é quase idêntica ao CTGAN original, facilitando a migração.
+    </p>
+
+    <h3>Instalação</h3>
+    <div class="code-block">
+      <header><span class="file">Terminal</span><span>pip</span></header>
+      <pre><code># Do PyPI
+pip install dpsdg
+
+# Do source
+git clone https://github.com/brains-group/dpsdg.git
+cd dpsdg
+pip install -e .</code></pre>
+    </div>
+
+    <h3>DP-CTGAN</h3>
+    <div class="code-block">
+      <header><span class="file">dp_ctgan.py</span><span>Python</span></header>
+      <pre><code>import pandas as pd
+from dpsdg.models.dp_ctgan import DPDPCTGAN
+
+# Seus dados
+real_data = pd.DataFrame({
+    'idade': [25, 30, 35, 40, 45],
+    'salario': [3000, 5000, 7000, 9000, 12000],
+    'risco': ['baixo', 'medio', 'alto', 'medio', 'baixo']
+})
+discrete_columns = ['risco']
+
+# CTGAN original (sem privacidade)
+from ctgan import CTGAN
+ctgan = CTGAN(epochs=300)
+ctgan.fit(real_data, discrete_columns)
+synthetic = ctgan.sample(1000)
+
+# DP-CTGAN (com privacidade)
+model = DPDPCTGAN(
+    epsilon=1.0,        # Budget de privacidade
+    delta=1e-5,          # Probabilidade de falha
+    epochs=300
+)
+
+# OBRIGATÓRIO: chamar fit_transformer antes do fit
+model.fit_transformer(real_data, discrete_columns)
+
+# Treinar normalmente
+model.fit(real_data, discrete_columns)
+
+# Gerar dados sintéticos
+synthetic = model.sample(1000)</code></pre>
+    </div>
+
+    <div class="callout warning">
+      <strong>Atenção:</strong> O DP-CTGAN requer a chamada <code>fit_transformer()</code> antes do <code>fit()</code>. Isso configura o transformador de dados ciente de privacidade. Sem isso, o modelo não terá garantias de DP.
+    </div>
+
+    <h3>DP-TVAE</h3>
+    <div class="code-block">
+      <header><span class="file">dp_tvae.py</span><span>Python</span></header>
+      <pre><code>import pandas as pd
+from dpsdg import DPTVAE
+
+# Seus dados
+real_data = pd.DataFrame({
+    'idade': [25, 30, 35, 40, 45],
+    'salario': [3000, 5000, 7000, 9000, 12000],
+    'risco': ['baixo', 'medio', 'alto', 'medio', 'baixo']
+})
+discrete_columns = ['risco']
+
+# TVAE original (sem privacidade)
+from ctgan import TVAE
+tvae = TVAE(epochs=300)
+tvae.fit(real_data, discrete_columns)
+synthetic = tvae.sample(1000)
+
+# DP-TVAE (com privacidade)
+model = DPTVAE(
+    epsilon=1.0,        # Budget de privacidade
+    delta=1e-5,          # Probabilidade de falha
+    epochs=300
+)
+
+# Treinar (sem fit_transformer necessário)
+model.fit(real_data, discrete_columns)
+
+# Gerar dados sintéticos
+synthetic = model.sample(1000)</code></pre>
+    </div>
+
+    <h3>Parâmetros de Privacidade</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parâmetro</th>
+            <th>Tipo</th>
+            <th>Default</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>epsilon</strong></td>
+            <td>float</td>
+            <td>0.0 (CTGAN) / 1.0 (TVAE)</td>
+            <td>Budget de privacidade (ε). Menor = mais privacidade</td>
+          </tr>
+          <tr>
+            <td><strong>delta</strong></td>
+            <td>float</td>
+            <td>1e-5</td>
+            <td>Probabilidade de falha (δ). Deve ser << 1/n</td>
+          </tr>
+          <tr>
+            <td><strong>max_grad_norm</strong></td>
+            <td>float</td>
+            <td>1.0</td>
+            <td>Threshold de clipping para gradientes</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Valores de Epsilon Recomendados</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Epsilon (ε)</th>
+            <th>Privacidade</th>
+            <th>Qualidade</th>
+            <th>Uso Recomendado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="highlight">0.1</td>
+            <td>Muito forte</td>
+            <td>Muito baixa</td>
+            <td>Dados extremamente sensíveis</td>
+          </tr>
+          <tr>
+            <td class="highlight">1.0</td>
+            <td>Forte</td>
+            <td>Moderada</td>
+            <td>Saúde, finanças (padrão)</td>
+          </tr>
+          <tr>
+            <td class="highlight">5.0</td>
+            <td>Moderada</td>
+            <td>Boa</td>
+            <td>Dados sensíveis gerais</td>
+          </tr>
+          <tr>
+            <td class="highlight">10.0</td>
+            <td>Fraca</td>
+            <td>Alta</td>
+            <td>Dados semi-sensíveis</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- OPACUS -->
+  <section id="opacus">
+    <h2>Opção 2: Opacus (Alternativa)</h2>
+
+    <h3>O que é</h3>
+    <p>
+      Biblioteca PyTorch do Meta para treinar modelos com Differential Privacy usando DP-SGD. Mais flexível que dpsdg, mas requer mais trabalho de integração com CTGAN/TVAE.
+    </p>
+
+    <h3>Instalação</h3>
+    <div class="code-block">
+      <header><span class="file">Terminal</span><span>pip</span></header>
+      <pre><code>pip install opacus</code></pre>
+    </div>
+
+    <h3>Como Funciona</h3>
+    <p>
+      O Opacus modifica o processo de treinamento padrão com três etapas:
+    </p>
+    <ol style="margin-left:1.5rem; margin-bottom:1rem;">
+      <li><strong>Gradient Clipping:</strong> Limita a norma L2 de cada gradiente individual</li>
+      <li><strong>Noise Addition:</strong> Adiciona ruído gaussiano calibrado aos gradientes</li>
+      <li><strong>Privacy Accounting:</strong> Calcula o budget de privacidade consumido</li>
+    </ol>
+
+    <h3>Integração com CTGAN</h3>
+    <div class="code-block">
+      <header><span class="file">opacus_ctgan.py</span><span>Python</span></header>
+      <pre><code>import torch
+from torch.optim import SGD
+from opacus import PrivacyEngine
+from ctgan import CTGAN
+
+# Criar modelo CTGAN
+ctgan = CTGAN(epochs=300)
+
+# Criar Privacy Engine
+privacy_engine = PrivacyEngine()
+
+# Transformar dados (exemplo simplificado)
+# Na prática, você precisa acessar os componentes internos do CTGAN
+
+# O Opacus precisa de:
+# 1. O modelo PyTorch (discriminator ou generator)
+# 2. Um optimizer
+# 3. Um DataLoader
+
+# Exemplo conceitual:
+model, optimizer, data_loader = privacy_engine.make_private(
+    module=ctgan.discriminator,  # Componente a ser protegido
+    optimizer=optimizer,
+    data_loader=data_loader,
+    noise_multiplier=1.1,        # Razão ruído/gradiente
+    max_grad_norm=1.0,           # Threshold de clipping
+)
+
+# Treinar normalmente — gradientes já são perturbados
+ctgan.fit(data, discrete_columns)</code></pre>
+    </div>
+
+    <div class="callout danger">
+      <strong>Atenção:</strong> A integração do Opacus com CTGAN não é trivial. O CTGAN tem arquitetura interna complexa (generator + discriminator + training loop). Você precisará modificar o código-fonte do CTGAN para usar Opacus corretamente.
+    </div>
+
+    <h3>Parâmetros do Opacus</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parâmetro</th>
+            <th>Tipo</th>
+            <th>Default</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>noise_multiplier</strong></td>
+            <td>float</td>
+            <td>1.1</td>
+            <td>Razão entre ruído e gradiente clipado</td>
+          </tr>
+          <tr>
+            <td><strong>max_grad_norm</strong></td>
+            <td>float</td>
+            <td>1.0</td>
+            <td>Threshold de clipping para gradientes</td>
+          </tr>
+          <tr>
+            <td><strong>target_epsilon</strong></td>
+            <td>float</td>
+            <td>Opcional</td>
+            <td>Budget de privacidade alvo</td>
+          </tr>
+          <tr>
+            <td><strong>target_delta</strong></td>
+            <td>float</td>
+            <td>Opcional</td>
+            <td>Probabilidade de falha alvo</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Exemplo com make_private_with_epsilon</h3>
+    <div class="code-block">
+      <header><span class="file">opacus_epsilon.py</span><span>Python</span></header>
+      <pre><code>from opacus import PrivacyEngine
+
+# Método mais controlado — definir epsilon alvo
+privacy_engine = PrivacyEngine()
+
+model, optimizer, data_loader = privacy_engine.make_private_with_epsilon(
+    module=model,
+    optimizer=optimizer,
+    data_loader=data_loader,
+    epochs=300,
+    target_epsilon=1.0,      # Budget alvo
+    target_delta=1e-5,       # Falha alvo
+    max_grad_norm=1.0,
+)
+
+# O Opacus calcula automaticamente o noise_multiplier necessário</code></pre>
+    </div>
+  </section>
+
+  <!-- COMPARAÇÃO -->
+  <section id="comparacao">
+    <h2>Comparação das Abordagens</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Aspecto</th>
+            <th>dpsdg</th>
+            <th>Opacus</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Facilidade de uso</strong></td>
+            <td class="highlight">✅ Muito fácil</td>
+            <td>⚠️ Requer integração</td>
+          </tr>
+          <tr>
+            <td><strong>API</strong></td>
+            <td class="highlight">✅ Idêntica ao CTGAN</td>
+            <td>⚠️ Diferente (PyTorch)</td>
+          </tr>
+          <tr>
+            <td><strong>Flexibilidade</strong></td>
+            <td>⚠️ Limitada</td>
+            <td class="highlight">✅ Alta</td>
+          </tr>
+          <tr>
+            <td><strong>DP-CTGAN</strong></td>
+            <td class="highlight">✅ Pronto</td>
+            <td>⚠️ Manual</td>
+          </tr>
+          <tr>
+            <td><strong>DP-TVAE</strong></td>
+            <td class="highlight">✅ Pronto</td>
+            <td>⚠️ Manual</td>
+          </tr>
+          <tr>
+            <td><strong>Privacy Accounting</strong></td>
+            <td class="highlight">✅ Automático</td>
+            <td class="highlight">✅ Automático</td>
+          </tr>
+          <tr>
+            <td><strong>Controle de ε</strong></td>
+            <td class="highlight">✅ Parâmetro</td>
+            <td>⚠️ Via noise_multiplier</td>
+          </tr>
+          <tr>
+            <td><strong>Manutenção</strong></td>
+            <td>⚠️ Comunidade</td>
+            <td class="highlight">✅ Meta (Facebook)</td>
+          </tr>
+          <tr>
+            <td><strong>Documentação</strong></td>
+            <td>⚠️ Básica</td>
+            <td class="highlight">✅ Completa</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout success">
+      <strong>Recomendação:</strong> Para a maioria dos casos, use <strong>dpsdg</strong>. É mais fácil, a API é idêntica ao CTGAN, e funciona imediatamente. Use Opacus apenas se precisar de controle granular sobre o processo de treinamento.
+    </div>
+  </section>
+
+  <!-- PARÂMETROS -->
+  <section id="parametros">
+    <h2>Parâmetros de Privacidade em Detalhe</h2>
+
+    <h3>Epsilon (ε)</h3>
+    <p>
+      O parâmetro mais importante. Define o "budget" de privacidade. Um valor menor significa que o modelo revelation menos sobre qualquer registro individual do treino.
+    </p>
+
+    <div class="code-block">
+      <header><span class="file">Interpretação de Epsilon</span><span>Conceitual</span></header>
+      <pre><code># Epsilon = 1.0 significa:
+# "A probabilidade de o modelo agir diferente com/sem
+#  qualquer registro individual é limitada por factor e^ε = 2.718"
+
+# Epsilon = 0.1 significa:
+# "O modelo é quase idêntico com ou sem qualquer registro"
+# → Máxima privacidade, mas dados de baixa qualidade
+
+# Epsilon = 10.0 significa:
+# "O modelo pode diferir significativamente"
+# → Menos privacidade, mas dados de alta qualidade</code></pre>
+    </div>
+
+    <h3>Delta (δ)</h3>
+    <p>
+      Probabilidade de que a garantia de privacidade falhe. Deve ser extremamente pequena — tipicamente 1/n onde n é o número de registros de treino.
+    </p>
+
+    <div class="code-block">
+      <header><span class="file">Cálculo de Delta</span><span>Python</span></header>
+      <pre><code># Para 10.000 registros de treino:
+n = 10000
+delta = 1 / (n * 10)  # = 1e-5 (muito menor que 1/n)
+
+# Para 1.000 registros:
+n = 1000
+delta = 1 / (n * 10)  # = 1e-4
+
+# Regra geral: delta << 1/n</code></pre>
+    </div>
+
+    <h3>Max Grad Norm</h3>
+    <p>
+      Threshold de clipping. Limita quanto cada registro individual pode influenciar o gradiente. Um valor menor = mais privacidade, mas converge mais devagar.
+    </p>
+
+    <div class="code-block">
+      <header><span class="file">Exemplo de Clipping</span><span>Conceitual</span></header>
+      <pre><code># Gradiente original: [0.5, 1.2, 0.8, 2.1]
+# max_grad_norm = 1.0
+
+# Norma L2 = sqrt(0.5² + 1.2² + 0.8² + 2.1²) = 2.58
+# Fator de escala = min(1.0 / 2.58, 1.0) = 0.387
+
+# Gradiente clipado: [0.19, 0.46, 0.31, 0.81]</code></pre>
+    </div>
+  </section>
+
+  <!-- EXEMPLOS -->
+  <section id="exemplos">
+    <h2>Exemplos Práticos</h2>
+
+    <h3>Caso 1: Dados de Saúde (Privacidade Máxima)</h3>
+    <div class="code-block">
+      <header><span class="file">saude_dp.py</span><span>Python</span></header>
+      <pre><code>import pandas as pd
+from dpsdg import DPTVAE
+
+# Dados médicos sensíveis
+dados_saude = pd.DataFrame({
+    'idade': [45, 52, 38, 61, 29],
+    'pressao': [140, 160, 120, 180, 110],
+    'colesterol': [250, 280, 200, 300, 180],
+    'diabetico': ['sim', 'sim', 'nao', 'sim', 'nao']
+})
+discrete_columns = ['diabetico']
+
+# Privacidade máxima para dados de saúde
+model = DPTVAE(
+    epsilon=1.0,        # Budget forte
+    delta=1e-5,         # Falha extremamente improvável
+    epochs=300
+)
+
+model.fit(dados_saude, discrete_columns)
+dados_sinteticos = model.sample(5000)
+
+# Resultado: dados sintéticos com garantia matemática de privacidade</code></pre>
+    </div>
+
+    <h3>Caso 2: Dados Financeiros (Privacidade Moderada)</h3>
+    <div class="code-block">
+      <header><span class="file">financeiro_dp.py</span><span>Python</span></header>
+      <pre><code>import pandas as pd
+from dpsdg.models.dp_ctgan import DPDPCTGAN
+
+# Dados bancários
+dados_financeiros = pd.DataFrame({
+    'idade': [30, 45, 52, 28, 67],
+    'salario': [5000, 8000, 12000, 4000, 15000],
+    'saldo': [10000, 25000, 50000, 8000, 80000],
+    'risco': ['baixo', 'medio', 'alto', 'baixo', 'alto']
+})
+discrete_columns = ['risco']
+
+# Privacidade moderada — melhor qualidade
+model = DPDPCTGAN(
+    epsilon=5.0,        # Budget moderado
+    delta=1e-5,
+    epochs=300
+)
+
+model.fit_transformer(dados_financeiros, discrete_columns)
+model.fit(dados_financeiros, discrete_columns)
+dados_sinteticos = model.sample(10000)
+
+# Resultado: dados sintéticos com privacidade razoável e boa qualidade</code></pre>
+    </div>
+
+    <h3>Caso 3: Dados para Testes (Privacidade Fraca)</h3>
+    <div class="code-block">
+      <header><span class="file">testes_dp.py</span><span>Python</span></header>
+      <pre><code>import pandas as pd
+from dpsdg.models.dp_ctgan import DPDPCTGAN
+
+# Dados de teste (menos sensíveis)
+dados_teste = pd.DataFrame({
+    'usuario': ['user1', 'user2', 'user3', 'user4', 'user5'],
+    'idade': [25, 30, 35, 40, 45],
+    'plano': ['free', 'pro', 'enterprise', 'free', 'pro']
+})
+discrete_columns = ['usuario', 'plano']
+
+# Privacidade fraca — máxima qualidade
+model = DPDPCTGAN(
+    epsilon=10.0,       # Budget fraco
+    delta=1e-5,
+    epochs=300
+)
+
+model.fit_transformer(dados_teste, discrete_columns)
+model.fit(dados_teste, discrete_columns)
+dados_sinteticos = model.sample(1000)
+
+# Resultado: dados sintéticos de alta qualidade com privacidade básica</code></pre>
+    </div>
+  </section>
+
+  <!-- IMPACTO -->
+  <section id="impacto">
+    <h2>Impacto na Qualidade dos Dados</h2>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="value" style="color:var(--danger);">ε=0.1</div>
+        <div class="label">Qualidade Muito Baixa</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--warning);">ε=1.0</div>
+        <div class="label">Qualidade Moderada</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--accent);">ε=5.0</div>
+        <div class="label">Qualidade Boa</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--success);">ε=10.0</div>
+        <div class="label">Qualidade Alta</div>
+      </div>
+    </div>
+
+    <h3>Trade-off Qualidade vs Privacidade</h3>
+    <div class="code-block">
+      <header><span class="file">Trade-off</span><span>Conceitual</span></header>
+      <pre><code># Cenário: 10.000 registros de clientes bancários
+
+# ε = 0.1 (Privacidade Máxima)
+# → Dados muito ruidosos
+# → Estatísticas pouco fiéis
+# → ML models com accuracy ~50%
+# → Ideal para: dados ultra-sensíveis (HIV, HIV+)
+
+# ε = 1.0 (Privacidade Forte)
+# → Dados moderadamente ruidosos
+# → Estatísticas razoavelmente fiéis
+# → ML models com accuracy ~70%
+# → Ideal para: dados de saúde, finanças
+
+# ε = 5.0 (Privacidade Moderada)
+# → Dados pouco ruidosos
+# → Estatísticas fiéis
+# → ML models com accuracy ~85%
+# → Ideal para: dados corporativos
+
+# ε = 10.0 (Privacidade Fraca)
+# → Dados quase originais
+# → Estatísticas muito fiéis
+# → ML models com accuracy ~90%+
+# → Ideal para: dados semi-públicos</code></pre>
+    </div>
+
+    <div class="callout warning">
+      <strong>Regra de Ouro:</strong> Não existe "tamanho único". O valor de ε deve ser escolhido com base na sensibilidade dos dados e nos requisitos de uso. Para dados de saúde, ε=1.0 é recomendado. Para dados financeiros, ε=5.0 pode ser suficiente.
+    </div>
+  </section>
+
+  <!-- INTEGRAÇÃO -->
+  <section id="integracao">
+    <h2>Integração com Nosso Código</h2>
+
+    <h3>Para o Branch Polars</h3>
+    <div class="code-block">
+      <header><span class="file">integracao_polars.py</span><span>Python</span></header>
+      <pre><code># O dpsdg espera pandas DataFrame como entrada
+# Nosso código usa Polars DataFrame
+
+# Solução: converter Polars → Pandas para treino com DPSDG
+
+import polars as pl
+import pandas as pd
+from dpsdg import DPTVAE
+
+# Dados em Polars
+df_polars = pl.DataFrame({
+    'idade': [25, 30, 35, 40, 45],
+    'salario': [3000, 5000, 7000, 9000, 12000],
+    'risco': ['baixo', 'medio', 'alto', 'medio', 'baixo']
+})
+
+# Converter para Pandas
+df_pandas = df_polars.to_pandas()
+
+# Treinar com DPSDG
+model = DPTVAE(epsilon=1.0, delta=1e-5, epochs=300)
+model.fit(df_pandas, discrete_columns=['risco'])
+dados_sinteticos = model.sample(1000)
+
+# Converter de volta para Polars (se necessário)
+df_sintetico_polars = pl.from_pandas(dados_sinteticos)</code></pre>
+    </div>
+
+    <h3>Integração Futura</h3>
+    <div class="callout info">
+      <strong>Próximo passo:</strong> Para eliminar a conversão Polars→Pandas, precisaríamos modificar o dpsdg para aceitar Polars DataFrames nativamente. Isso envolveria alterar o <code>fit_transformer()</code> e <code>fit()</code> para trabalhar com Polars.
+    </div>
+  </section>
+
+  <div class="nav-arrows">
+    <a href="ctgan-privacidade.html">← Privacidade</a>
+    <a href="ctgan-documentation.html">Documentação Principal →</a>
+  </div>
+
+  <footer>
+    Documentação CTGAN/TVAE — Repository: <a href="https://github.com/maxsonferovante/ctgan-documentation">maxsonferovante/ctgan-documentation</a>
+  </footer>
+
+</div>
+</body>
+</html>
