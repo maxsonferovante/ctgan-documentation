@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTGAN — Privacidade e Vazamento de Dados</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#fff; --fg:#1a1a2e; --muted:#64748b; --accent:#2563eb; --accent-bg:#eff6ff;
+      --border:#e2e8f0; --code-bg:#f8fafc; --tag-bg:#f1f5f9; --radius:8px; --max-w:820px;
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono','Fira Code','Consolas',monospace;
+      --success:#16a34a; --success-bg:#f0fdf4; --warning:#d97706; --warning-bg:#fffbeb;
+      --danger:#dc2626; --danger-bg:#fef2f2;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--font-sans); background:var(--bg); color:var(--fg); line-height:1.75; font-size:16px; }
+    .wrapper { max-width:var(--max-w); margin:0 auto; padding:3rem 1.5rem 6rem; }
+    header { margin-bottom:3rem; padding-top:.5rem; }
+    header h1 { font-size:2.5rem; font-weight:800; letter-spacing:-.03em; margin-bottom:.5rem; }
+    header .subtitle { color:var(--muted); font-size:1.05rem; margin-bottom:1.5rem; }
+    .tag { display:inline-block; padding:.2em .7em; font-size:.8rem; font-weight:600; border-radius:999px; background:var(--tag-bg); color:var(--muted); }
+    .tag.accent { background:var(--accent-bg); color:var(--accent); }
+    .tag.success { background:var(--success-bg); color:var(--success); }
+    .tag.warning { background:var(--warning-bg); color:var(--warning); }
+    .tag.danger { background:var(--danger-bg); color:var(--danger); }
+    nav.toc { position:fixed; top:3rem; right:max(1rem,calc((100vw - var(--max-w))/2 - 240px)); width:220px; font-size:.82rem; display:none; }
+    @media(min-width:1200px){ nav.toc{display:block;} }
+    nav.toc a { display:block; padding:.25em 0; color:var(--muted); text-decoration:none; border-left:2px solid transparent; padding-left:.75rem; transition:all .15s; }
+    nav.toc a:hover, nav.toc a.active { color:var(--accent); border-left-color:var(--accent); }
+    section { margin-bottom:3.5rem; }
+    h2 { font-size:1.6rem; font-weight:700; margin-bottom:1rem; padding-bottom:.4rem; border-bottom:2px solid var(--border); letter-spacing:-.02em; }
+    h3 { font-size:1.15rem; font-weight:600; margin:1.8rem 0 .6rem; color:var(--fg); }
+    p { margin-bottom:1rem; }
+    .code-block { position:relative; margin:1.25rem 0; }
+    .code-block header { display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; border:1px solid var(--border); border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; padding:.4rem 1rem; font-size:.78rem; font-weight:600; color:var(--muted); margin:0; }
+    .code-block header .file { font-family:var(--font-mono); font-weight:700; }
+    pre { background:var(--code-bg); border:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); padding:1rem 1.25rem; overflow-x:auto; font-size:.82rem; line-height:1.6; font-family:var(--font-mono); tab-size:4; }
+    code { background:var(--tag-bg); padding:.15em .4em; border-radius:4px; font-size:.88em; font-family:var(--font-mono); }
+    .table-wrap { overflow-x:auto; margin:1.25rem 0; border-radius:var(--radius); border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:.88rem; }
+    th,td { padding:.6rem 1rem; text-align:left; border-bottom:1px solid var(--border); }
+    th { background:var(--tag-bg); font-weight:700; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--accent-bg); }
+    td.highlight { font-weight:700; color:var(--accent); }
+    details { margin:1rem 0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    summary { padding:.75rem 1rem; background:var(--tag-bg); cursor:pointer; font-weight:600; font-size:.9rem; list-style:none; display:flex; align-items:center; gap:.5rem; user-select:none; }
+    summary::before { content:'▸'; transition:transform .15s; }
+    details[open] summary::before { transform:rotate(90deg); }
+    summary::-webkit-details-marker { display:none; }
+    details .detail-body { padding:1rem; }
+    .callout { padding:1rem 1.25rem; border-radius:var(--radius); margin:1.25rem 0; font-size:.92rem; line-height:1.6; }
+    .callout.info { background:var(--accent-bg); border-left:4px solid var(--accent); }
+    .callout.warning { background:var(--warning-bg); border-left:4px solid var(--warning); }
+    .callout.danger { background:var(--danger-bg); border-left:4px solid var(--danger); }
+    .callout.success { background:var(--success-bg); border-left:4px solid var(--success); }
+    .callout strong { font-weight:700; }
+    .metric-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin:1.5rem 0; }
+    .metric-card { border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; text-align:center; }
+    .metric-card .value { font-size:2rem; font-weight:800; color:var(--accent); line-height:1; }
+    .metric-card .label { font-size:.78rem; color:var(--muted); margin-top:.4rem; text-transform:uppercase; letter-spacing:.04em; }
+    .paper-card { border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; margin:1rem 0; }
+    .paper-card h4 { font-size:1rem; font-weight:700; margin-bottom:.5rem; }
+    .paper-card .meta { font-size:.8rem; color:var(--muted); margin-bottom:.75rem; }
+    .paper-card .finding { background:var(--tag-bg); padding:.75rem; border-radius:var(--radius); margin-top:.75rem; font-size:.88rem; }
+    .paper-card .finding strong { color:var(--accent); }
+    .nav-arrows { display:flex; justify-content:space-between; margin-top:3rem; padding-top:1.5rem; border-top:2px solid var(--border); }
+    .nav-arrows a { color:var(--accent); text-decoration:none; font-weight:600; font-size:.9rem; }
+    .nav-arrows a:hover { text-decoration:underline; }
+    footer { margin-top:4rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--muted); font-size:.82rem; text-align:center; }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+    @media(max-width:768px) {
+      header h1 { font-size:1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="toc" id="toc">
+  <a href="#resumo">Resumo</a>
+  <a href="#mecanismos">Mecanismos</a>
+  <a href="#ctgan">CTGAN</a>
+  <a href="#tvae">TVAE</a>
+  <a href="#comparacao">Comparação</a>
+  <a href="#estudos">Estudos</a>
+  <a href="#mitigacoes">Mitigações</a>
+  <a href="#recomendacoes">Recomendações</a>
+</nav>
+
+<div class="wrapper">
+
+  <header id="top">
+    <h1>Privacidade e Vazamento de Dados</h1>
+    <p class="subtitle">Riscos de Privacidade em CTGAN e TVAE — Referências Bibliográficas</p>
+    <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem;">
+      <span class="tag danger">Privacidade</span>
+      <span class="tag warning">Vazamento de Dados</span>
+      <span class="tag">CTGAN</span>
+      <span class="tag">TVAE</span>
+      <a href="ctgan-documentation.html" class="tag accent" style="text-decoration:none;">← Documentação Principal</a>
+    </div>
+  </header>
+
+  <section id="resumo">
+    <h2>Resumo Executivo</h2>
+    <p>
+      Modelos generativos para dados tabulares como <strong>CTGAN</strong> (GAN) e <strong>TVAE</strong> (VAE) possuem risco intrínseco de vazamento de dados. Ambos podem memorizar padrões dos dados de treino e reproduzi-los em dados sintéticos, expondo informações sensíveis.
+    </p>
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="value" style="color:var(--danger);">92%</div>
+        <div class="label">CTGAN pode reproduzir registros específicos</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--warning);">0.59-0.81</div>
+        <div class="label">CTGAN identificabilidade</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--warning);">0.47-0.76</div>
+        <div class="label">TVAE identificabilidade</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--danger);">Sim</div>
+        <div class="label">Ambos são vulneráveis sem DP</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="mecanismos">
+    <h2>Mecanismos de Vazamento</h2>
+    <p>Existem três principais mecanismos pelos quais CTGAN e TVAE podem vazar dados:</p>
+
+    <h3>1. Memorização Direta</h3>
+    <p>
+      O modelo pode memorizar registros específicos do treino e reproduzi-los quase idênticos nos dados sintéticos. Isso é mais comum em GANs (CTGAN) onde o discriminador pode causar overfitting.
+    </p>
+
+    <h3>2. Membership Inference Attacks (MIA)</h3>
+    <p>
+      Atacantes podem determinar se um registro específico estava no conjunto de treino, mesmo sem acesso ao modelo. Métricas como AUC medem essa vulnerabilidade.
+    </p>
+
+    <h3>3. Cluster Overlap</h3>
+    <p>
+      Mesmo sem memorização direta, os dados sintéticos formam clusters que se alinham com os clusters dos dados reais. Atacantes podem detectar essa sobreposição e inferir informações sensíveis.
+    </p>
+
+    <div class="callout danger">
+      <strong>Problema Fundamental:</strong> Para gerar dados realistas, o modelo precisa aprender a distribuição dos dados de treino fielmente. Essa fidelidade cria uma "mancha cega" onde a utilidade do modelo entra em conflito com a privacidade.
+    </div>
+  </section>
+
+  <section id="ctgan">
+    <h2>CTGAN — Riscos Específicos</h2>
+
+    <h3>Mecanismo de Vazamento</h3>
+    <p>
+      O CTGAN usa uma GAN (Generative Adversarial Network) com dois componentes: Generator e Discriminator. O Discriminator pode causar <strong>overfitting</strong> ao memorizar características específicas dos dados de treino para distinguir melhor reais de falsos.
+    </p>
+
+    <div class="callout warning">
+      <strong>Especificidade do CTGAN:</strong> Em um estudo, CTGAN treinado com um registro específico produziu dados com o valor "Holland-Netherlands" em <strong>92% dos casos</strong>, enquanto modelos não treinados com esse registro nunca o produziam.
+    </p>
+
+    <h3>Identificabilidade</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Métrica</th><th>CTGAN</th><th>Interpretação</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Identificabilidade</strong></td><td class="highlight">0.59–0.81</td><td>Alto risco de reidentificação</td></tr>
+          <tr><td><strong>MIA AUC</strong></td><td>0.580</td><td>Acima do aleatório (0.5)</td></tr>
+          <tr><td><strong>TPR@1%</strong></td><td>0.012</td><td>1.2% dos registros atacados são inferidos</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="tvae">
+    <h2>TVAE — Riscos Específicos</h2>
+
+    <h3>Mecanismo de Vazamento</h3>
+    <p>
+      O TVAE usa um VAE (Variational Autoencoder) com Encoder e Decoder. O Encoder aprende a comprimir dados em um espaço latente probabilístico. Os códigos latentes podem <strong>codificar padrões específicos</strong> dos dados de treino, permitindo reconstrução parcial.
+    </p>
+
+    <div class="callout info">
+      <strong>Diferença do CTGAN:</strong> Enquanto CTGAN memoriza via competição adversarial, TVAE memoriza via codificação latente. TVAE tende a ter menor risco que CTGAN em maioria dos estudos, mas ainda significativo.
+    </div>
+
+    <h3>Identificabilidade</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Métrica</th><th>TVAE</th><th>Interpretação</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Identificabilidade</strong></td><td>0.47–0.76</td><td>Risco moderado a alto</td></tr>
+          <tr><td><strong>MIA AUC</strong></td><td>0.580–0.627</td><td>Acima do aleatório</td></tr>
+          <tr><td><strong>Duplicação</strong></td><td>Alta em alguns estudos</td><td>Pode gerar registros muito similares</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="comparacao">
+    <h2>Comparação de Riscos</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo de Ataque</th>
+            <th>CTGAN</th>
+            <th>TVAE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Memorização Direta</strong></td>
+            <td style="color:var(--danger);">Alto risco</td>
+            <td style="color:var(--warning);">Moderado</td>
+          </tr>
+          <tr>
+            <td><strong>Membership Inference</strong></td>
+            <td style="color:var(--danger);">Alto risco</td>
+            <td style="color:var(--warning);">Moderado</td>
+          </tr>
+          <tr>
+            <td><strong>Cluster Overlap</strong></td>
+            <td style="color:var(--danger);">Alto risco</td>
+            <td style="color:var(--danger);">Alto risco</td>
+          </tr>
+          <tr>
+            <td><strong>Reconstruction</strong></td>
+            <td style="color:var(--warning);">Moderado</td>
+            <td style="color:var(--danger);">Alto risco</td>
+          </tr>
+          <tr>
+            <td><strong>Identificabilidade Geral</strong></td>
+            <td style="color:var(--danger);">0.59–0.81</td>
+            <td style="color:var(--warning);">0.47–0.76</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warning">
+      <strong>Conclusão:</strong> CTGAN geralmente tem <strong>maior risco</strong> que TVAE na maioria dos estudos. Porém, <strong>ambos são vulneráveis</strong> sem proteções formais como Differential Privacy.
+    </div>
+  </section>
+
+  <section id="estudos">
+    <h2>Estudos e Referências</h2>
+
+    <div class="paper-card">
+      <h4>Risk In Context: Benchmarking Privacy Leakage of Foundation Models in Synthetic Tabular Data Generation</h4>
+      <div class="meta">2025 · arXiv:2507.17066</div>
+      <p>Avalia CTGAN, TVAE, TabDiff e foundation models (GPT-4o, LLaMA) em 35 datasets reais.</p>
+      <div class="finding">
+        <strong>Resultado:</strong> CTGAN: AUC 0.580, TVAE: AUC 0.580–0.627. Foundation models têm maior risco (0.587–0.667). CTGAN e GPT-4o-mini oferecem melhor trade-off qualidade/privacidade.
+      </div>
+    </div>
+
+    <div class="paper-card">
+      <h4>When Privacy Isn't Synthetic: Hidden Data Leakage in Generative AI Models</h4>
+      <div class="meta">2025 · arXiv:2512.06062</div>
+      <p>Investiga CTGAN, TVAE, TabDDPM, PATE-GAN, PrivBayes e GReaT em dados de saúde e finanças.</p>
+      <div class="finding">
+        <strong>Resultado:</strong> Modelos sem DP (CTGAN, TVAE) acumulam leakage mais cedo. A sobreposição de clusters entre dados reais e sintéticos revela memorização mesmo sem cópias diretas.
+      </div>
+    </div>
+
+    <div class="paper-card">
+      <h4>The DCR Delusion: Measuring the Privacy Risk of Synthetic Data</h4>
+      <div class="meta">2025 · arXiv:2505.01524</div>
+      <p>Avalia Baynet, CTGAN, SMOTE e modelos de difusão no dataset Adult.</p>
+      <div class="finding">
+        <strong>Resultado:</strong> CTGAN treinado com um registro específico produziu "Holland-Netherlands" em <strong>92% dos casos</strong>. Métricas DCR falham em detectar esse leakage óbvio.
+      </div>
+    </div>
+
+    <div class="paper-card">
+      <h4>Preserving information while respecting privacy</h4>
+      <div class="meta">2025 · PMC (PubMed Central)</div>
+      <p>Compara CTGAN, TVAE, PrivBayes, Synthpop em dados de saúde.</p>
+      <div class="finding">
+        <strong>Resultado:</strong> CTGAN: identificabilidade 0.59–0.81, TVAE: 0.47–0.76. PrivBayes (com DP) tem melhor privacidade (0.94–0.99) mas menor utilidade.
+      </div>
+    </div>
+
+    <div class="paper-card">
+      <h4>On the Privacy Properties of GAN-generated Samples</h4>
+      <div class="meta">2021 · ICML (Proceedings of Machine Learning Research)</div>
+      <p>Analisa propriedades de privacidade de samples gerados por GANs.</p>
+      <div class="finding">
+        <strong>Resultado:</strong> GANs (incluindo CTGAN) podem memorizar e reproduzir dados de treino. Differential Privacy é necessário para mitigar riscos, mas degrada qualidade dos dados.
+      </div>
+    </div>
+  </section>
+
+  <section id="mitigacoes">
+    <h2>Mitigações</h2>
+
+    <h3>1. Differential Privacy (DP)</h3>
+    <p>Adicionar ruído calibrado durante o treino para limitar o impacto de cada registro individual.</p>
+    <div class="code-block">
+      <header><span class="file">Exemplo: PATE-GAN</span><span>DP-GAN</span></header>
+      <pre><code># PATE-GAN usa Differential Privacy para proteger dados
+# O ruído é adicionado durante o treino do discriminador
+# Isso limita a memorização, mas reduz qualidade
+
+# Trade-off fundamental:
+# Mais DP → Mais privacidade → Menos utilidade
+# Menos DP → Menos privacidade → Mais utilidade</code></pre>
+    </div>
+
+    <h3>2. Limitar Epochs de Treino</h3>
+    <p>Parar o treino antes do modelo memorizar os dados.</p>
+
+    <h3>3. Validação com MIA</h3>
+    <p>Testar o modelo com Membership Inference Attacks antes de liberar dados.</p>
+
+    <h3>4. Não Liberar o Modelo</h3>
+    <p>Release apenas dados sintéticos, nunca os pesos do modelo.</p>
+
+    <div class="callout success">
+      <strong>Recomendação:</strong> Para dados sensíveis (saúde, finanças), use obrigatoriamente <strong>Differential Privacy</strong>. A perda de qualidade é o custo da privacidade.
+    </div>
+  </section>
+
+  <section id="recomendacoes">
+    <h2>Recomendações Práticas</h2>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="value" style="color:var(--danger);">ALTO</div>
+        <div class="label">Risco sem DP</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--success);">MÍNIMO</div>
+        <div class="label">Risco com DP</div>
+      </div>
+    </div>
+
+    <h3>Para Dados Não-Sensíveis</h3>
+    <ul style="margin-left:1.5rem; margin-bottom:1rem;">
+      <li>CTGAN ou TVAE são aceitáveis</li>
+      <li>Validar com MIA antes de liberar</li>
+      <li>Não liberar o modelo treinado</li>
+    </ul>
+
+    <h3>Para Dados Sensíveis (Saúde, Finanças)</h3>
+    <ul style="margin-left:1.5rem; margin-bottom:1rem;">
+      <li>Usar obrigatoriamente Differential Privacy</li>
+      <li>Considerar PATE-GAN ou DP-GAN</li>
+      <li>Aceitar perda de qualidade como custo</li>
+      <li>Realizar auditoria de privacidade completa</li>
+    </ul>
+
+    <div class="callout danger">
+      <strong>Aviso:</strong> Nenhum modelo generativo é 100% seguro sem proteções formais. Differential Privacy é a única garantia matemática de privacidade disponível.
+    </div>
+  </section>
+
+  <div class="nav-arrows">
+    <a href="ctgan-comparacao.html">← CTGAN vs TVAE</a>
+    <a href="ctgan-documentation.html">Documentação Principal →</a>
+  </div>
+
+  <footer>
+    Documentação CTGAN/TVAE — Repository: <a href="https://github.com/maxsonferovante/ctgan-documentation">maxsonferovante/ctgan-documentation</a>
+  </footer>
+
+</div>
+</body>
+</html>
